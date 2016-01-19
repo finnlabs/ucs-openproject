@@ -1,0 +1,36 @@
+#!/bin/sh
+
+VERSION=1
+
+. /usr/share/univention-appcenter/joinscripthelper.sh
+
+joinscript_init
+
+eval "$(ucr shell ldap/base)"
+
+set -ex
+
+joinscript_run_in_container bash -c "
+APP_NAME=openproject
+APP_PREFIX=/openproject
+cat - <<CONFIG > /etc/${APP_NAME}/installer.dat
+mysql/autoinstall install
+mysql/ssl no 
+server/autoinstall install
+server/hostname ${HOSTNAME}
+server/ssl no
+server/server_path_prefix ${APP_PREFIX}
+smtp/autoinstall skip
+memcached/autoinstall install
+repositories/svn-install install
+repositories/git-install install
+repositories/svn-path /var/db/${APP_NAME}/svn
+repositories/git-path /var/db/${APP_NAME}/git
+repositories/git-http-backend /usr/lib/git-core/git-http-backend/
+CONFIG
+/usr/bin/openproject configure
+"
+
+joinscript_save_current_version
+
+exit 0

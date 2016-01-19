@@ -1,0 +1,6 @@
+univention-app dev-populate-appcenter --new \
+	--ini openproject.ini \
+	--join openproject.inst \
+	--store-data openproject.store_data \
+	--restore-data-after-setup openproject.restore_data \
+	--unmaintained openproject
