@@ -1,6 +1,9 @@
 #!/bin/sh
 
-VERSION=1
+set -ex
+
+# Increment this whenever you make a change, otherwise it won't be re-executed!
+VERSION=2
 
 . /usr/share/univention-appcenter/joinscripthelper.sh
 
@@ -8,28 +11,31 @@ joinscript_init
 
 eval "$(ucr shell ldap/base)"
 
-set -ex
-
 APP_NAME=openproject
 APP_PREFIX=/openproject
 APP_INSTALLER_DAT="/etc/${APP_NAME}/installer.dat"
 
-# Looks like
-joinscript_run_in_container touch "$APP_INSTALLER_DAT"
-joinscript_run_in_container -- echo "mysql/autoinstall install" >> "$APP_INSTALLER_DAT"
-joinscript_run_in_container -- echo "mysql/ssl no" >> "$APP_INSTALLER_DAT"
-joinscript_run_in_container -- echo "server/autoinstall install" >> "$APP_INSTALLER_DAT"
-joinscript_run_in_container -- echo "server/hostname ${HOSTNAME}" >> "$APP_INSTALLER_DAT"
-joinscript_run_in_container -- echo "server/ssl no" >> "$APP_INSTALLER_DAT"
-joinscript_run_in_container -- echo "server/server_path_prefix ${APP_PREFIX}" >> "$APP_INSTALLER_DAT"
-joinscript_run_in_container -- echo "smtp/autoinstall skip" >> "$APP_INSTALLER_DAT"
-joinscript_run_in_container -- echo "memcached/autoinstall install" >> "$APP_INSTALLER_DAT"
-joinscript_run_in_container -- echo "repositories/svn-install install" >> "$APP_INSTALLER_DAT"
-joinscript_run_in_container -- echo "repositories/git-install install" >> "$APP_INSTALLER_DAT"
-joinscript_run_in_container -- echo "repositories/svn-path /var/db/${APP_NAME}/svn" >> "$APP_INSTALLER_DAT"
-joinscript_run_in_container -- echo "repositories/git-path /var/db/${APP_NAME}/git" >> "$APP_INSTALLER_DAT"
-joinscript_run_in_container -- echo "repositories/git-http-backend /usr/lib/git-core/git-http-backend/" >> "$APP_INSTALLER_DAT"
-joinscript_run_in_container /usr/bin/openproject configure
+MAPPED_INSTALLER_DAT="$(joinscript_container_file_touch "$APP_INSTALLER_DAT")"
+
+cat > "$MAPPED_INSTALLER_DAT" <<CONFIG
+mysql/autoinstall install
+mysql/ssl no
+server/autoinstall install
+server/hostname ${HOSTNAME}
+server/ssl no
+server/server_path_prefix ${APP_PREFIX}
+smtp/autoinstall skip
+memcached/autoinstall install
+repositories/svn-install install
+repositories/git-install install
+repositories/svn-path /var/db/${APP_NAME}/svn
+repositories/git-path /var/db/${APP_NAME}/git
+repositories/git-http-backend /usr/lib/git-core/git-http-backend/
+CONFIG
+
+# set a proper locale, otherwise the db:seed task fails
+joinscript_run_in_container openproject config:set LOCALE=en
+joinscript_run_in_container openproject configure
 
 joinscript_save_current_version
 

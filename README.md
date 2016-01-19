@@ -4,14 +4,31 @@ This repo contains the scripts required to make OpenProject work on the UCS dist
 
 We're following the Docker approach, outlined at <http://docs.software-univention.de/app-tutorial.html#docker:example:prerequisites>.
 
-## Prerequisites
+## Testing locally
 
-Ensure you have added the `openproject` debian-7 repo, otherwise the openproject package can't be downloaded.
+```bash
+wget -qO - https://deb.packager.io/key | sudo apt-key add -
+echo "deb https://deb.packager.io/gh/opf/openproject-ce wheezy stable/5" | sudo tee /etc/apt/sources.list.d/openproject-ce.list
+sudo apt-get update
+ucr set repository/online/unmaintained='yes'
+apt-get install -y univention-appcenter-dev univention-appcenter-docker univention-appcenter
+univention-app dev-setup-local-appcenter
+```
 
-## Status
+Register the app (do it every time you change stuff):
 
-What works:
+```bash
+./bin/test-local
+```
 
-* Registering the new app into a local appcenter appears to work
-* Added the join scripts and store/restore data scripts
-* Installing the packages required by the app (fails in the join script though)
+Install the app:
+
+```bash
+univention-app install openproject
+```
+
+Remove the app:
+
+```bash
+univention-app remove openproject
+```
