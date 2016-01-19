@@ -3,7 +3,7 @@
 set -ex
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=2
+VERSION=3
 
 . /usr/share/univention-appcenter/joinscripthelper.sh
 
@@ -14,6 +14,7 @@ eval "$(ucr shell ldap/base)"
 APP_NAME=openproject
 APP_PREFIX=/openproject
 APP_INSTALLER_DAT="/etc/${APP_NAME}/installer.dat"
+HOSTNAME="localhost"
 
 MAPPED_INSTALLER_DAT="$(joinscript_container_file_touch "$APP_INSTALLER_DAT")"
 
@@ -36,6 +37,7 @@ CONFIG
 # set a proper locale, otherwise the db:seed task fails
 joinscript_run_in_container openproject config:set LOCALE=en
 joinscript_run_in_container openproject configure
+joinscript_run_in_container invoke-rc.d openproject restart
 
 joinscript_save_current_version
 
