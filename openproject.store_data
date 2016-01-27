@@ -1,12 +1,3 @@
 #!/bin/sh
 
-#/usr/share/univention-docker-container-mode/restore_data_after_setup \
-#	"$@"
-
-#cp -r /var/db/openproject \
-#	/var/lib/appcenter/apps/openproject/data/var_openproject
-
-#cp -r /var/lib/mysql \
-#	/var/lib/appcenter/apps/openproject/data/var_mysql
-
 exit 0

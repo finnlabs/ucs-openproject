@@ -3,7 +3,7 @@
 set -ex
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=3
+VERSION=7
 
 . /usr/share/univention-appcenter/joinscripthelper.sh
 
@@ -16,6 +16,10 @@ APP_PREFIX=/openproject
 APP_INSTALLER_DAT="/etc/${APP_NAME}/installer.dat"
 HOSTNAME="localhost"
 
+# joinscript_run_in_container function is broken, so let's do this ourselves
+CONTAINER_ID=$(ucr get appcenter/apps/$APP_NAME/container)
+CONTAINER_SSL_PATH="$(docker exec $CONTAINER_ID bash -c 'echo /etc/univention/ssl/$(ucr get hostname).$(ucr get domainname)')"
+
 MAPPED_INSTALLER_DAT="$(joinscript_container_file_touch "$APP_INSTALLER_DAT")"
 
 cat > "$MAPPED_INSTALLER_DAT" <<CONFIG
@@ -23,7 +27,10 @@ mysql/autoinstall install
 mysql/ssl no
 server/autoinstall install
 server/hostname ${HOSTNAME}
-server/ssl no
+server/ssl yes
+server/ssl_cert $CONTAINER_SSL_PATH/cert.pem
+server/ssl_ca $CONTAINER_SSL_PATH/cert.pem
+server/ssl_key $CONTAINER_SSL_PATH/private.key
 server/server_path_prefix ${APP_PREFIX}
 smtp/autoinstall skip
 memcached/autoinstall install
@@ -34,10 +41,17 @@ repositories/git-path /var/db/${APP_NAME}/git
 repositories/git-http-backend /usr/lib/git-core/git-http-backend/
 CONFIG
 
+# Linking data dirs to the docker volume persisted across restarts
+mkdir -p /var/lib/univention-appcenter/apps/$APP_NAME/data/mysql
+mkdir -p /var/lib/univention-appcenter/apps/$APP_NAME/data/openproject
+joinscript_run_in_container ln -sf /var/lib/univention-appcenter/apps/$APP_NAME/data/mysql /var/lib/mysql
+joinscript_run_in_container ln -sf /var/lib/univention-appcenter/apps/$APP_NAME/data/openproject /var/db/openproject
+
 # set a proper locale, otherwise the db:seed task fails
 joinscript_run_in_container openproject config:set LOCALE=en
 joinscript_run_in_container openproject configure
-joinscript_run_in_container invoke-rc.d openproject restart
+# nohup seems required
+joinscript_run_in_container nohup service openproject restart
 
 joinscript_save_current_version
 
