@@ -4,7 +4,7 @@ set -ex
 set -o pipefail
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=9
+VERSION=10
 
 . /usr/share/univention-appcenter/joinscripthelper.sh
 
@@ -32,7 +32,7 @@ if [ "$LDAP_USERNAME" = "" ]; then
 	ucr set $APP_NAME/ldap_password="$LDAP_PASSWORD"
 fi
 
-LDAP_MAPPING="username=uid,first_name=givenName,last_name=sn,email=mailPrimaryAddress"
+LDAP_MAPPING="map_login=uid map_firstname=givenName map_lastname=sn map_mail=mailPrimaryAddress"
 LDAP_URL="ldap://$LDAP_USERNAME:$LDAP_PASSWORD@$LDAP_HOST:$LDAP_PORT/cn=users,$LDAP_BASE"
 
 # joinscript_run_in_container function is broken, so let's do this ourselves
@@ -73,6 +73,13 @@ joinscript_run_in_container openproject config:set LDAP_MAPPING="$LDAP_MAPPING"
 joinscript_run_in_container openproject configure
 # nohup seems required
 joinscript_run_in_container nohup service openproject restart
+
+# configure LDAP authentication in OpenProject
+if [ "$(ucr get $APP_NAME/ldap_configured)" != "true" ] ; then
+	echo "Configuring LDAP integration with $APP_NAME..."
+	joinscript_run_in_container openproject run rake ldap:register url=$LDAP_URL name=UCS onthefly=true $LDAP_MAPPING
+	ucr set $APP_NAME/ldap_configured=true
+fi
 
 joinscript_save_current_version
 
