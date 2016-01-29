@@ -1,10 +1,10 @@
-#!/bin/sh
+#!/bin/bash
 
 set -ex
 set -o pipefail
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=8
+VERSION=9
 
 . /usr/share/univention-appcenter/joinscripthelper.sh
 
