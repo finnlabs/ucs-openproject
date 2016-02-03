@@ -1,0 +1,23 @@
+#!/bin/bash
+# https://docs.software-univention.de/app-tutorial-4.1.html
+
+set -e
+
+VERSION=1
+
+. /usr/share/univention-lib/ldap.sh
+. /usr/share/univention-join/joinscripthelper.lib
+joinscript_init
+
+eval "$(ucr shell)"
+SERVICE="OpenProject"
+APP_NAME="openproject"
+
+ucr unset $APP_NAME/ldap_configured
+
+# revert ucs_addServiceToLocalhost
+ucs_removeServiceFromLocalhost "${SERVICE}" "$@"
+
+# revert joinscript_save_current_version - so that the join script
+# would run again if the app is reinstalled
+joinscript_remove_script_from_status_file "$APP_NAME"

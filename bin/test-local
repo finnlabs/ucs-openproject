@@ -1,6 +1,5 @@
 univention-app dev-populate-appcenter --new \
 	--ini openproject.ini \
 	--join openproject.inst \
-	--store-data openproject.store_data \
-	--restore-data-after-setup openproject.restore_data \
+	--unjoin openproject.uinst \
 	--unmaintained openproject dialog libevent-core-2.0-5 libevent-extra-2.0-5

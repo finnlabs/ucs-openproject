@@ -4,8 +4,9 @@ set -ex
 set -o pipefail
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=10
+VERSION=11
 
+. /usr/share/univention-lib/ldap.sh
 . /usr/share/univention-appcenter/joinscripthelper.sh
 
 joinscript_init
@@ -13,24 +14,17 @@ joinscript_init
 eval "$(ucr shell ldap/base)"
 
 APP_NAME=openproject
+SERVICE="OpenProject"
 APP_PREFIX=/openproject
 APP_INSTALLER_DAT="/etc/${APP_NAME}/installer.dat"
 HOSTNAME="localhost"
 
 # create LDAP account for authentication
-LDAP_HOST="$(ucr get ldap/master)"
-LDAP_PORT=7389
+LDAP_HOST="$(ucr get ldap/server/name)"
+LDAP_PORT="$(ucr get ldap/server/port)"
 LDAP_BASE="$(ucr get ldap/base)"
-LDAP_USERNAME="$(ucr get $APP_NAME/ldap_username)"
-LDAP_PASSWORD="$(ucr get $APP_NAME/ldap_password)"
-
-if [ "$LDAP_USERNAME" = "" ]; then
-	LDAP_PASSWORD="$(< /dev/urandom tr -dc A-Za-z0-9 | head -c32;echo;)"
-	udm users/user create --option ldap_pwd --set lastname=$APP_NAME --set username=$APP_NAME --set password=$LDAP_PASSWORD --position cn=users,$LDAP_BASE
-	LDAP_USERNAME="$(udm users/user list --filter name=$APP_NAME | grep DN | awk '{print $2}')"
-	ucr set $APP_NAME/ldap_username="$LDAP_USERNAME"
-	ucr set $APP_NAME/ldap_password="$LDAP_PASSWORD"
-fi
+LDAP_USERNAME="$(ucr get ldap/hostdn)"
+LDAP_PASSWORD="$(cat /etc/machine.secret)"
 
 LDAP_MAPPING="map_login=uid map_firstname=givenName map_lastname=sn map_mail=mailPrimaryAddress"
 LDAP_URL="ldap://$LDAP_USERNAME:$LDAP_PASSWORD@$LDAP_HOST:$LDAP_PORT/cn=users,$LDAP_BASE"
@@ -81,6 +75,12 @@ if [ "$(ucr get $APP_NAME/ldap_configured)" != "true" ] ; then
 	ucr set $APP_NAME/ldap_configured=true
 fi
 
+# Best practice: Adds the service to the host. Then LDAP can be queried
+# to lookup where the app is already installed. Also useful for unjoin
+ucs_addServiceToLocalhost "${SERVICE}" "$@"
+
+# when everything worked fine, tell the system that this VERSION does
+# not need to be run again
 joinscript_save_current_version
 
 exit 0
