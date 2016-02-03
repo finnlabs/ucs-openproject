@@ -4,7 +4,7 @@ set -ex
 set -o pipefail
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=11
+VERSION=12
 
 . /usr/share/univention-lib/ldap.sh
 . /usr/share/univention-appcenter/joinscripthelper.sh
@@ -14,7 +14,6 @@ joinscript_init
 eval "$(ucr shell ldap/base)"
 
 APP_NAME=openproject
-SERVICE="OpenProject"
 APP_PREFIX=/openproject
 APP_INSTALLER_DAT="/etc/${APP_NAME}/installer.dat"
 HOSTNAME="localhost"
@@ -62,8 +61,7 @@ joinscript_run_in_container ln -sf /var/lib/univention-appcenter/apps/$APP_NAME/
 
 # set a proper locale, otherwise the db:seed task fails
 joinscript_run_in_container openproject config:set LOCALE=en
-joinscript_run_in_container openproject config:set LDAP_URL="$LDAP_URL"
-joinscript_run_in_container openproject config:set LDAP_MAPPING="$LDAP_MAPPING"
+joinscript_run_in_container openproject config:set EMAIL_DELIVERY_METHOD=sendmail
 joinscript_run_in_container openproject configure
 # nohup seems required
 joinscript_run_in_container nohup service openproject restart
@@ -77,7 +75,7 @@ fi
 
 # Best practice: Adds the service to the host. Then LDAP can be queried
 # to lookup where the app is already installed. Also useful for unjoin
-ucs_addServiceToLocalhost "${SERVICE}" "$@"
+ucs_addServiceToLocalhost "${APP_NAME}" "$@"
 
 # when everything worked fine, tell the system that this VERSION does
 # not need to be run again
