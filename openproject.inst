@@ -4,7 +4,7 @@ set -ex
 set -o pipefail
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=12
+VERSION=13
 
 . /usr/share/univention-lib/ldap.sh
 . /usr/share/univention-appcenter/joinscripthelper.sh
@@ -18,12 +18,13 @@ APP_PREFIX=/openproject
 APP_INSTALLER_DAT="/etc/${APP_NAME}/installer.dat"
 HOSTNAME="localhost"
 
-# create LDAP account for authentication
+# Get LDAP details for authentication
 LDAP_HOST="$(ucr get ldap/server/name)"
 LDAP_PORT="$(ucr get ldap/server/port)"
 LDAP_BASE="$(ucr get ldap/base)"
-LDAP_USERNAME="$(ucr get ldap/hostdn)"
-LDAP_PASSWORD="$(cat /etc/machine.secret)"
+
+LDAP_USERNAME="$(joinscript_run_in_container ucr get ldap/hostdn)"
+LDAP_PASSWORD="$(joinscript_run_in_container cat /etc/machine.secret)"
 
 LDAP_MAPPING="map_login=uid map_firstname=givenName map_lastname=sn map_mail=mailPrimaryAddress"
 LDAP_URL="ldap://$LDAP_USERNAME:$LDAP_PASSWORD@$LDAP_HOST:$LDAP_PORT/cn=users,$LDAP_BASE"
@@ -65,6 +66,9 @@ joinscript_run_in_container openproject config:set EMAIL_DELIVERY_METHOD=sendmai
 joinscript_run_in_container openproject configure
 # nohup seems required
 joinscript_run_in_container nohup service openproject restart
+
+# This prevents the password rotation
+joinscript_run_in_container ucr set server/password/change=false
 
 # configure LDAP authentication in OpenProject
 if [ "$(ucr get $APP_NAME/ldap_configured)" != "true" ] ; then
