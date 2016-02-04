@@ -1,0 +1,32 @@
+# OpenProject
+
+Welcome to OpenProject! You'll find below a short guide to help you get started.
+
+## First connection
+
+After installation, your OpenProject instance should be available at
+https://domain.com/openproject/. It is automatically configured to access the
+UCS LDAP of your domain, so you can readily log into it with your existing UCS
+username and password.
+
+## Change the default admin password
+
+You will also need to log in as the default admin user, which was automatically
+created at installation time. To do this, log out of OpenProject, and sign back
+in with the following username and password:
+
+username: admin
+password: admin
+
+The application will ask you to change the default password, and then you'll be
+able to access the OpenProject administration.
+
+You should take this opportunity to add admin rights to your own username, so
+that you don't need to use the default admin account again.
+
+## Disable the default admin account
+
+Once you've enabled yourself as a new admin of OpenProject, you can log back in
+as yourself, and go to the administration to disable the default admin account.
+
+You're all set!
