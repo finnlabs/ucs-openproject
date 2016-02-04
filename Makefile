@@ -3,7 +3,7 @@ DIST_DIR=dist
 all: clean dist download zip
 
 zip:
-	tar czf openproject.tar.gz . -C $(DIST_DIR)
+	tar czf openproject.tar.gz -C $(DIST_DIR) .
 
 download: 
 	mkdir -p $(DIST_DIR)/packages/amd64
@@ -15,7 +15,7 @@ dist:
 	cp openproject.inst $(DIST_DIR)/metadata/
 	cp openproject.uinst $(DIST_DIR)/metadata/
 	cp openproject.svg $(DIST_DIR)/metadata/
-	cp openproject.readme $(DIST_DIR)/
+	cp openproject.readme $(DIST_DIR)/readme
 
 clean:
 	rm -rf $(DIST_DIR)
