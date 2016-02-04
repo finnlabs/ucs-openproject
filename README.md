@@ -32,3 +32,17 @@ Remove the app:
 ```bash
 univention-app remove openproject
 ```
+
+## Releasing a new version
+
+Use the provided `Makefile` to generate the require tarball with the right
+structure as per the documentation at
+<http://docs.software-univention.de/app-tutorial.html#provide>.
+
+```
+make all
+```
+
+This will package everything into an `openproject.tar.gz` file. You can then
+upload it using the form at <https://upload.univention.de/upload.php>.
+
