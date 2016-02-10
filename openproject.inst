@@ -4,14 +4,14 @@ set -ex
 set -o pipefail
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=13
+VERSION=14
 
 . /usr/share/univention-lib/ldap.sh
 . /usr/share/univention-appcenter/joinscripthelper.sh
 
 joinscript_init
 
-eval "$(ucr shell ldap/base)"
+eval "$(ucr shell)"
 
 APP_NAME=openproject
 APP_PREFIX=/openproject
@@ -21,7 +21,7 @@ HOSTNAME="localhost"
 # Get LDAP details for authentication
 LDAP_HOST="$(ucr get ldap/server/name)"
 LDAP_PORT="$(ucr get ldap/server/port)"
-LDAP_BASE="$(ucr get ldap/base)"
+LDAP_BASE="$ldap_base"
 
 LDAP_USERNAME="$(joinscript_run_in_container ucr get ldap/hostdn)"
 LDAP_PASSWORD="$(joinscript_run_in_container cat /etc/machine.secret)"
@@ -33,8 +33,37 @@ LDAP_URL="ldap://$LDAP_USERNAME:$LDAP_PASSWORD@$LDAP_HOST:$LDAP_PORT/cn=users,$L
 CONTAINER_ID=$(ucr get appcenter/apps/$APP_NAME/container)
 CONTAINER_SSL_PATH="$(docker exec $CONTAINER_ID bash -c 'echo /etc/univention/ssl/$(ucr get hostname).$(ucr get domainname)')"
 
-MAPPED_INSTALLER_DAT="$(joinscript_container_file_touch "$APP_INSTALLER_DAT")"
+# SSO
+SSO_FQDN="${ucs_server_sso_fqdn:-ucs-sso.$domainname}"
+SSO_LOGIN_PAGE="https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php"
 
+# Register new SAML service provider via udm
+udm saml/serviceprovider create "$@" \
+	--ignore_exists \
+	--position "cn=saml-serviceprovider,cn=univention,$ldap_base" \
+	--set isActivated=TRUE \
+	--set Identifier="$APP_NAME" \
+	--set NameIDFormat="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified" \
+	--set simplesamlAttributes="false" \
+	--set AssertionConsumerService="https://$hostname.$domainname/sso-login-page" \
+	--set simplesamlNameIDAttribute="uid" \
+	--set privacypolicyURL="https://openproject.org/policy.html" \
+	--set serviceProviderOrganizationName="OpenProject" \
+	--set serviceproviderdescription="Sign into OpenProject with your existing credentials."
+
+# Add direct login link to ucs-overview page
+ucr set ucs/web/overview/entries/service/SP/description="OpenProject Login" \
+ucs/web/overview/entries/service/SP/label="OpenProject SSO" \
+ucs/web/overview/entries/service/SP/link="https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php?spentityid=$APP_NAME" \
+ucs/web/overview/entries/service/SP/priority=50
+
+MAPPED_IDP_CERT="$(joinscript_container_file_touch /etc/idp.cert)"
+MAPPED_IDP_METADATA="$(joinscript_container_file_touch /etc/idp.metadata)"
+wget --ca-certificate /etc/univention/ssl/ucsCA/CAcert.pem https://$SSO_FQDN/simplesamlphp/saml2/idp/certificate -O "$MAPPED_IDP_CERT"
+wget --ca-certificate /etc/univention/ssl/ucsCA/CAcert.pem https://$SSO_FQDN/simplesamlphp/saml2/idp/metadata.php -O "$MAPPED_IDP_METADATA"
+
+# Setup installer
+MAPPED_INSTALLER_DAT="$(joinscript_container_file_touch "$APP_INSTALLER_DAT")"
 cat > "$MAPPED_INSTALLER_DAT" <<CONFIG
 mysql/autoinstall install
 mysql/ssl no
@@ -54,28 +83,43 @@ repositories/git-path /var/db/${APP_NAME}/git
 repositories/git-http-backend /usr/lib/git-core/git-http-backend/
 CONFIG
 
-# Linking data dirs to the docker volume persisted across restarts
+# Link data dirs to the docker volume persisted across restarts
 mkdir -p /var/lib/univention-appcenter/apps/$APP_NAME/data/mysql
 mkdir -p /var/lib/univention-appcenter/apps/$APP_NAME/data/openproject
 joinscript_run_in_container ln -sf /var/lib/univention-appcenter/apps/$APP_NAME/data/mysql /var/lib/mysql
 joinscript_run_in_container ln -sf /var/lib/univention-appcenter/apps/$APP_NAME/data/openproject /var/db/openproject
 
-# set a proper locale, otherwise the db:seed task fails
+# Set a proper locale, otherwise the db:seed task fails
 joinscript_run_in_container openproject config:set LOCALE=en
 joinscript_run_in_container openproject config:set EMAIL_DELIVERY_METHOD=sendmail
 joinscript_run_in_container openproject configure
-# nohup seems required
-joinscript_run_in_container nohup service openproject restart
 
 # This prevents the password rotation
-joinscript_run_in_container ucr set server/password/change=false
+#joinscript_run_in_container ucr set server/password/change=false
 
-# configure LDAP authentication in OpenProject
-if [ "$(ucr get $APP_NAME/ldap_configured)" != "true" ] ; then
-	echo "Configuring LDAP integration with $APP_NAME..."
-	joinscript_run_in_container openproject run rake ldap:register url=$LDAP_URL name=UCS onthefly=true $LDAP_MAPPING
-	ucr set $APP_NAME/ldap_configured=true
-fi
+# Configure LDAP authentication in OpenProject
+#if [ "$(ucr get $APP_NAME/ldap_configured)" != "true" ] ; then
+#	echo "Configuring LDAP integration with $APP_NAME..."
+#	joinscript_run_in_container openproject run rake ldap:register url=$LDAP_URL name=UCS onthefly=true $LDAP_MAPPING
+#	ucr set $APP_NAME/ldap_configured=true
+#fi
+
+MAPPED_SAML_CONFIG="$(joinscript_container_file_touch "/opt/openproject/config/plugins/auth_saml/settings.yml")"
+cat > $MAPPED_SAML_CONFIG <<EOF
+ucs-sso:
+  name: "ucs-sso"
+  display_name: "UCS SSO"
+  # Use the default SAML icon
+  icon: "auth_provider-saml.png"
+  # omniauth-saml config
+  # assertion_consumer_service_url: "consumer_service_url"
+  issuer: "$APP_NAME"
+  idp_sso_target_url: "$SSO_LOGIN_PAGE"
+  idp_cert: "$(cat $MAPPED_IDP_CERT)"
+EOF
+
+# Finally, restart the whole thing (nohup seems required)
+joinscript_run_in_container nohup service openproject restart
 
 # Best practice: Adds the service to the host. Then LDAP can be queried
 # to lookup where the app is already installed. Also useful for unjoin
