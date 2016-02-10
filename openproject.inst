@@ -4,9 +4,9 @@ set -ex
 set -o pipefail
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=14
+VERSION=16
 
-. /usr/share/univention-lib/ldap.sh
+. /usr/share/univention-lib/all.sh
 . /usr/share/univention-appcenter/joinscripthelper.sh
 
 joinscript_init
@@ -45,9 +45,9 @@ udm saml/serviceprovider create "$@" \
 	--set Identifier="$APP_NAME" \
 	--set NameIDFormat="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified" \
 	--set simplesamlAttributes="false" \
-	--set AssertionConsumerService="https://$hostname.$domainname/sso-login-page" \
+	--set AssertionConsumerService="https://$hostname.$domain/openproject/login" \
 	--set simplesamlNameIDAttribute="uid" \
-	--set privacypolicyURL="https://openproject.org/policy.html" \
+	--set privacypolicyURL="https://openproject.org/policy" \
 	--set serviceProviderOrganizationName="OpenProject" \
 	--set serviceproviderdescription="Sign into OpenProject with your existing credentials."
 
@@ -108,14 +108,14 @@ MAPPED_SAML_CONFIG="$(joinscript_container_file_touch "/opt/openproject/config/p
 cat > $MAPPED_SAML_CONFIG <<EOF
 ucs-sso:
   name: "ucs-sso"
-  display_name: "UCS SSO"
+  display_name: "UCS"
   # Use the default SAML icon
   icon: "auth_provider-saml.png"
   # omniauth-saml config
-  # assertion_consumer_service_url: "consumer_service_url"
+  assertion_consumer_service_url: "https://$hostname.$domain/openproject/auth/ucs-sso/callback"
   issuer: "$APP_NAME"
-  idp_sso_target_url: "$SSO_LOGIN_PAGE"
-  idp_cert: "$(cat $MAPPED_IDP_CERT)"
+  idp_sso_target_url: "https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php"
+  idp_cert_fingerprint: "$(openssl x509 -in $MAPPED_IDP_CERT -noout -fingerprint | cut -f2 -d '=')"
 EOF
 
 # Finally, restart the whole thing (nohup seems required)
