@@ -1,4 +1,5 @@
-univention-app dev-populate-appcenter --new \
+univention-app dev-populate-appcenter \
+	--component openproject_20160203 \
 	--ini openproject.ini \
 	--join openproject.inst \
 	--unjoin openproject.uinst \

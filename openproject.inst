@@ -37,6 +37,9 @@ CONTAINER_SSL_PATH="$(docker exec $CONTAINER_ID bash -c 'echo /etc/univention/ss
 SSO_FQDN="${ucs_server_sso_fqdn:-ucs-sso.$domainname}"
 SSO_LOGIN_PAGE="https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php"
 
+# Allow SAML to return additional attributes from LDAP
+ucr set saml/idp/ldap/get_attributes="'uid', 'mailPrimaryAddress', 'enabledServiceProviderIdentifier', 'sn', 'givenName'"
+
 # Register new SAML service provider via udm
 udm saml/serviceprovider create "$@" \
 	--ignore_exists \
@@ -44,8 +47,11 @@ udm saml/serviceprovider create "$@" \
 	--set isActivated=TRUE \
 	--set Identifier="$APP_NAME" \
 	--set NameIDFormat="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified" \
-	--set simplesamlAttributes="false" \
-	--set AssertionConsumerService="https://$hostname.$domain/openproject/login" \
+	--set simplesamlAttributes="true" \
+	--set LDAPattributes='mailPrimaryAddress' \
+	--set LDAPattributes='sn' \
+	--set LDAPattributes='givenName' \
+	--set AssertionConsumerService="https://$hostname.$domain/openproject/auth/ucs-sso/callback" \
 	--set simplesamlNameIDAttribute="uid" \
 	--set privacypolicyURL="https://openproject.org/policy" \
 	--set serviceProviderOrganizationName="OpenProject" \
