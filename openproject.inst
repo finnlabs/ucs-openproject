@@ -119,6 +119,11 @@ ucs-sso:
   issuer: "$APP_NAME"
   idp_sso_target_url: "https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php"
   idp_cert_fingerprint: "$IDP_CERT_FINGERPRINT"
+  attribute_statements:
+    email: ['primaryMailAddress']
+    name: ['gecos']
+    first_name: ['givenName']
+    last_name: ['sn']
 EOF
 
 # Finally, restart the whole thing (nohup seems required)
