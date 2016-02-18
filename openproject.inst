@@ -47,7 +47,7 @@ udm saml/serviceprovider create "$@" \
 	--set isActivated=TRUE \
 	--set Identifier="$APP_NAME" \
 	--set NameIDFormat="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified" \
-	--set simplesamlAttributes="true" \
+	--set simplesamlAttributes=TRUE \
 	--set LDAPattributes='mailPrimaryAddress' \
 	--set LDAPattributes='sn' \
 	--set LDAPattributes='givenName' \
