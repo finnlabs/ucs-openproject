@@ -63,10 +63,7 @@ ucs/web/overview/entries/service/SP/label="OpenProject SSO" \
 ucs/web/overview/entries/service/SP/link="https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php?spentityid=$APP_NAME" \
 ucs/web/overview/entries/service/SP/priority=50
 
-MAPPED_IDP_CERT="$(joinscript_container_file_touch /etc/idp.cert)"
-MAPPED_IDP_METADATA="$(joinscript_container_file_touch /etc/idp.metadata)"
-wget --ca-certificate /etc/univention/ssl/ucsCA/CAcert.pem https://$SSO_FQDN/simplesamlphp/saml2/idp/certificate -O "$MAPPED_IDP_CERT"
-wget --ca-certificate /etc/univention/ssl/ucsCA/CAcert.pem https://$SSO_FQDN/simplesamlphp/saml2/idp/metadata.php -O "$MAPPED_IDP_METADATA"
+IDP_CERT_FINGERPRINT=$(wget --ca-certificate /etc/univention/ssl/ucsCA/CAcert.pem https://$SSO_FQDN/simplesamlphp/saml2/idp/certificate -O - | openssl x509 -noout -fingerprint | cut -f2 -d '=')
 
 # Setup installer
 MAPPED_INSTALLER_DAT="$(joinscript_container_file_touch "$APP_INSTALLER_DAT")"
@@ -121,7 +118,7 @@ ucs-sso:
   assertion_consumer_service_url: "https://$hostname.$domainname/openproject/auth/ucs-sso/callback"
   issuer: "$APP_NAME"
   idp_sso_target_url: "https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php"
-  idp_cert_fingerprint: "$(openssl x509 -in $MAPPED_IDP_CERT -noout -fingerprint | cut -f2 -d '=')"
+  idp_cert_fingerprint: "$IDP_CERT_FINGERPRINT"
 EOF
 
 # Finally, restart the whole thing (nohup seems required)
