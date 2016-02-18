@@ -120,7 +120,7 @@ ucs-sso:
   idp_sso_target_url: "https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php"
   idp_cert_fingerprint: "$IDP_CERT_FINGERPRINT"
   attribute_statements:
-    email: ['primaryMailAddress']
+    email: ['mailPrimaryAddress']
     name: ['gecos']
     first_name: ['givenName']
     last_name: ['sn']
