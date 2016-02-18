@@ -51,7 +51,7 @@ udm saml/serviceprovider create "$@" \
 	--set LDAPattributes='mailPrimaryAddress' \
 	--set LDAPattributes='sn' \
 	--set LDAPattributes='givenName' \
-	--set AssertionConsumerService="https://$hostname.$domain/openproject/auth/ucs-sso/callback" \
+	--set AssertionConsumerService="https://$hostname.$domainname/openproject/auth/ucs-sso/callback" \
 	--set simplesamlNameIDAttribute="uid" \
 	--set privacypolicyURL="https://openproject.org/policy" \
 	--set serviceProviderOrganizationName="OpenProject" \
@@ -118,7 +118,7 @@ ucs-sso:
   # Use the default SAML icon
   icon: "auth_provider-saml.png"
   # omniauth-saml config
-  assertion_consumer_service_url: "https://$hostname.$domain/openproject/auth/ucs-sso/callback"
+  assertion_consumer_service_url: "https://$hostname.$domainname/openproject/auth/ucs-sso/callback"
   issuer: "$APP_NAME"
   idp_sso_target_url: "https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php"
   idp_cert_fingerprint: "$(openssl x509 -in $MAPPED_IDP_CERT -noout -fingerprint | cut -f2 -d '=')"
