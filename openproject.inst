@@ -19,8 +19,8 @@ APP_INSTALLER_DAT="/etc/${APP_NAME}/installer.dat"
 HOSTNAME="localhost"
 
 # Get LDAP details for authentication
-LDAP_HOST="$(ucr get ldap/server/name)"
-LDAP_PORT="$(ucr get ldap/server/port)"
+LDAP_HOST="$ldap_server_name"
+LDAP_PORT="$ldap_server_port"
 LDAP_BASE="$ldap_base"
 
 LDAP_USERNAME="$(joinscript_run_in_container ucr get ldap/hostdn)"
@@ -38,7 +38,7 @@ SSO_FQDN="${ucs_server_sso_fqdn:-ucs-sso.$domainname}"
 SSO_LOGIN_PAGE="https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php"
 
 # Allow SAML to return additional attributes from LDAP
-ucr set saml/idp/ldap/get_attributes="'uid', 'mailPrimaryAddress', 'enabledServiceProviderIdentifier', 'sn', 'givenName'"
+ucr set saml/idp/ldap/get_attributes="${saml_idp_ldap_get_attributes}, 'sn', 'givenName'"
 
 # Register new SAML service provider via udm
 udm saml/serviceprovider create "$@" \
@@ -63,7 +63,7 @@ ucs/web/overview/entries/service/SP/label="OpenProject SSO" \
 ucs/web/overview/entries/service/SP/link="https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php?spentityid=$APP_NAME" \
 ucs/web/overview/entries/service/SP/priority=50
 
-IDP_CERT_FINGERPRINT=$(wget --ca-certificate /etc/univention/ssl/ucsCA/CAcert.pem https://$SSO_FQDN/simplesamlphp/saml2/idp/certificate -O - | openssl x509 -noout -fingerprint | cut -f2 -d '=')
+IDP_CERT_FINGERPRINT=$(wget --ca-certificate /etc/univention/ssl/ucsCA/CAcert.pem "https://$SSO_FQDN/simplesamlphp/saml2/idp/certificate" -O - | openssl x509 -noout -fingerprint | cut -f2 -d '=')
 
 # Setup installer
 MAPPED_INSTALLER_DAT="$(joinscript_container_file_touch "$APP_INSTALLER_DAT")"
@@ -87,10 +87,10 @@ repositories/git-http-backend /usr/lib/git-core/git-http-backend/
 CONFIG
 
 # Link data dirs to the docker volume persisted across restarts
-mkdir -p /var/lib/univention-appcenter/apps/$APP_NAME/data/mysql
-mkdir -p /var/lib/univention-appcenter/apps/$APP_NAME/data/openproject
-joinscript_run_in_container ln -sf /var/lib/univention-appcenter/apps/$APP_NAME/data/mysql /var/lib/mysql
-joinscript_run_in_container ln -sf /var/lib/univention-appcenter/apps/$APP_NAME/data/openproject /var/db/openproject
+mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/data/mysql"
+mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject"
+joinscript_run_in_container ln -sf "/var/lib/univention-appcenter/apps/$APP_NAME/data/mysql" /var/lib/mysql
+joinscript_run_in_container ln -sf "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject" /var/db/openproject
 
 # Set a proper locale, otherwise the db:seed task fails
 joinscript_run_in_container openproject config:set LOCALE=en
@@ -108,7 +108,7 @@ joinscript_run_in_container openproject configure
 #fi
 
 MAPPED_SAML_CONFIG="$(joinscript_container_file_touch "/opt/openproject/config/plugins/auth_saml/settings.yml")"
-cat > $MAPPED_SAML_CONFIG <<EOF
+cat > "$MAPPED_SAML_CONFIG" <<EOF
 ucs-sso:
   name: "ucs-sso"
   display_name: "UCS"
