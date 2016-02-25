@@ -3,7 +3,7 @@
 
 set -e
 
-VERSION=2
+VERSION=3
 
 . /usr/share/univention-lib/ldap.sh
 . /usr/share/univention-join/joinscripthelper.lib
@@ -12,7 +12,7 @@ joinscript_init
 eval "$(ucr shell)"
 APP_NAME="openproject"
 
-ucr unset $APP_NAME/ldap_configured
+#ucr unset $APP_NAME/ldap_configured
 
 # revert ucs_addServiceToLocalhost
 ucs_removeServiceFromLocalhost "${APP_NAME}" "$@"

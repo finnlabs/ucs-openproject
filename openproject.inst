@@ -4,7 +4,7 @@ set -ex
 set -o pipefail
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=16
+VERSION=17
 
 . /usr/share/univention-lib/all.sh
 . /usr/share/univention-appcenter/joinscripthelper.sh
@@ -51,7 +51,7 @@ udm saml/serviceprovider create "$@" \
 	--set LDAPattributes='mailPrimaryAddress' \
 	--set LDAPattributes='sn' \
 	--set LDAPattributes='givenName' \
-	--set AssertionConsumerService="https://$hostname.$domainname/openproject/auth/ucs-sso/callback" \
+	--set AssertionConsumerService="https://$hostname.$domainname/openproject/auth/ucs/callback" \
 	--set simplesamlNameIDAttribute="uid" \
 	--set privacypolicyURL="https://openproject.org/policy" \
 	--set serviceProviderOrganizationName="OpenProject" \
@@ -95,6 +95,8 @@ joinscript_run_in_container ln -sf "/var/lib/univention-appcenter/apps/$APP_NAME
 # Set a proper locale, otherwise the db:seed task fails
 joinscript_run_in_container openproject config:set LOCALE=en
 joinscript_run_in_container openproject config:set EMAIL_DELIVERY_METHOD=sendmail
+joinscript_run_in_container openproject config:set OMNIAUTH_DIRECT_LOGIN_PROVIDER=ucs
+joinscript_run_in_container openproject config:set OPENPROJECT_DISABLE__PASSWORD__LOGIN=true
 joinscript_run_in_container openproject configure
 
 # This prevents the password rotation
@@ -109,13 +111,13 @@ joinscript_run_in_container openproject configure
 
 MAPPED_SAML_CONFIG="$(joinscript_container_file_touch "/opt/openproject/config/plugins/auth_saml/settings.yml")"
 cat > "$MAPPED_SAML_CONFIG" <<EOF
-ucs-sso:
-  name: "ucs-sso"
+ucs:
+  name: "ucs"
   display_name: "UCS"
   # Use the default SAML icon
   icon: "auth_provider-saml.png"
   # omniauth-saml config
-  assertion_consumer_service_url: "https://$hostname.$domainname/openproject/auth/ucs-sso/callback"
+  assertion_consumer_service_url: "https://$hostname.$domainname/openproject/auth/ucs/callback"
   issuer: "$APP_NAME"
   idp_sso_target_url: "https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php"
   idp_cert_fingerprint: "$IDP_CERT_FINGERPRINT"
