@@ -4,7 +4,7 @@ set -ex
 set -o pipefail
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=18
+VERSION=20
 
 . /usr/share/univention-lib/all.sh
 . /usr/share/univention-appcenter/joinscripthelper.sh
@@ -37,8 +37,10 @@ SSO_FQDN="${ucs_server_sso_fqdn:-ucs-sso.$domainname}"
 SSO_LOGIN_PAGE="https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php"
 
 OID=6696237932
-SCHEMA_FILE=$(mktemp)
-APP_VERSION="$(dpkg -l $APP_NAME | grep $APP_NAME | awk '{print $3}')"
+# ucs_registerLDAPExtension will use the file basename in its dn...
+SCHEMA_FILE=$(mktemp -d)/$APP_NAME.schema
+# ucs_registerLDAPExtension is broken...
+APP_VERSION="$(docker exec $CONTAINER_ID bash -c "dpkg -l $APP_NAME | grep $APP_NAME | awk '{print $3}'")"
 cat > $SCHEMA_FILE <<EOF
 attributetype ( 1.3.6.1.4.1.10176.99998.$OID.1.1 NAME '$APP_NAME-isadmin'
 	DESC 'OpenProject admin toggle'
@@ -59,7 +61,7 @@ ucs_registerLDAPExtension --packagename $APP_NAME --packageversion $APP_VERSION 
 
 udm settings/extended_attribute create "$@" \
 	--ignore_exists \
-	--position "cn=${APP_NAME},cn=custom attributes,cn=univention,$ldap_base" \
+	--position "cn=${APP_NAME},cn=ldapschema,cn=univention,$ldap_base" \
 	--set module="users/user" `# extending users` \
 	--set ldapMapping="${APP_NAME}-isadmin" `# LDAP attribute from the schema` \
 	--set objectClass="${APP_NAME}-user" \
@@ -165,6 +167,7 @@ ucs:
     name: ['gecos']
     first_name: ['givenName']
     last_name: ['sn']
+    admin: ['openproject-isadmin']
 EOF
 
 # Finally, restart the whole thing (nohup seems required)
