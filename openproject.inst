@@ -37,8 +37,43 @@ CONTAINER_SSL_PATH="$(docker exec $CONTAINER_ID bash -c 'echo /etc/univention/ss
 SSO_FQDN="${ucs_server_sso_fqdn:-ucs-sso.$domainname}"
 SSO_LOGIN_PAGE="https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php"
 
+OID=6696237932
+SCHEMA_FILE=$(mktemp)
+cat > $SCHEMA_FILE <<EOF
+attributetype ( 1.3.6.1.4.1.10176.99998.$OID.1.1 NAME '$APP_NAME-isadmin'
+	DESC 'OpenProject admin toggle'
+	EQUALITY caseIgnoreMatch
+	SUBSTR caseIgnoreSubstringsMatch
+	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE
+	)
+objectclass ( 1.3.6.1.4.1.10176.99998.$OID.0.1 NAME '$APP_NAME-user'
+	DESC 'OpenProject user'
+	SUP top AUXILIARY
+	MUST ( cn )
+	MAY ( ${APP_NAME}-isadmin )
+	)
+EOF
+
+ucs_registerLDAPExtension "$@" --schema "$SCHEMA_FILE"
+
+udm settings/extended_attribute create "$@" \
+	--ignore_exists \
+	--position "cn=${APP_NAME},cn=custom attributes,cn=univention,$ldap_base" \
+	--set module="users/user" `# extending users` \
+	--set ldapMapping="${APP_NAME}-isadmin" `# LDAP attribute from the schema` \
+	--set objectClass="${APP_NAME}-user" \
+	--set name="${APP_NAME}-isadmin" `# this is the name for UDM` \
+	--set shortDescription="Add admin rights to OpenProject" \
+	--set longDescription="Whether this user shall be given admin permissions on OpenProject" \
+	--set tabName="OpenProject" `# This may create a new tab in the form` \
+	--set tabAdvanced='0' \
+	--set tabPosition='1' \
+	--set syntax='TrueFalseUp' `# should be a CheckBox` \
+	--set mayChange='1' \
+	--set default='FALSE' || die
+
 # Allow SAML to return additional attributes from LDAP
-ucr set saml/idp/ldap/get_attributes="${saml_idp_ldap_get_attributes}, 'sn', 'givenName'"
+ucr set saml/idp/ldap/get_attributes="${saml_idp_ldap_get_attributes}, 'sn', 'givenName', 'openproject-isadmin'"
 
 # Register new SAML service provider via udm
 udm saml/serviceprovider create "$@" \
@@ -51,6 +86,7 @@ udm saml/serviceprovider create "$@" \
 	--set LDAPattributes='mailPrimaryAddress' \
 	--set LDAPattributes='sn' \
 	--set LDAPattributes='givenName' \
+	--set LDAPattributes='openproject-isadmin' \
 	--set AssertionConsumerService="https://$hostname.$domainname/openproject/auth/ucs/callback" \
 	--set simplesamlNameIDAttribute="uid" \
 	--set privacypolicyURL="https://openproject.org/policy" \
