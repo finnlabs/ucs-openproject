@@ -98,6 +98,8 @@ joinscript_run_in_container openproject config:set EMAIL_DELIVERY_METHOD=sendmai
 joinscript_run_in_container openproject config:set OMNIAUTH_DIRECT_LOGIN_PROVIDER=ucs
 joinscript_run_in_container openproject config:set OPENPROJECT_DISABLE__PASSWORD__LOGIN=true
 joinscript_run_in_container openproject configure
+# Allow auto-registration when going through SAML
+joinscript_run_in_container openproject run rake setting:set[self_registration=3]
 
 # This prevents the password rotation
 #joinscript_run_in_container ucr set server/password/change=false
