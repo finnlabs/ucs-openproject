@@ -4,13 +4,12 @@ set -ex
 set -o pipefail
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=17
+VERSION=18
 
 . /usr/share/univention-lib/all.sh
 . /usr/share/univention-appcenter/joinscripthelper.sh
 
 joinscript_init
-
 eval "$(ucr shell)"
 
 APP_NAME=openproject
