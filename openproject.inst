@@ -4,7 +4,7 @@ set -ex
 set -o pipefail
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=20
+VERSION=21
 
 . /usr/share/univention-lib/all.sh
 . /usr/share/univention-appcenter/joinscripthelper.sh
@@ -59,21 +59,27 @@ EOF
 # https://forge.univention.org/bugzilla/show_bug.cgi?id=38205
 ucs_registerLDAPExtension --packagename $APP_NAME --packageversion $APP_VERSION --schema "$SCHEMA_FILE"
 
+# create a container where the extended attributes shall live
+udm container/cn create "$@" \
+	--ignore_exists \
+	--position "cn=custom attributes,cn=univention,$ldap_base" \
+	--set name="$APP_NAME"
+
 udm settings/extended_attribute create "$@" \
 	--ignore_exists \
-	--position "cn=${APP_NAME},cn=ldapschema,cn=univention,$ldap_base" \
+	--position "cn=${APP_NAME},cn=custom attributes,cn=univention,$ldap_base" \
 	--set module="users/user" `# extending users` \
 	--set ldapMapping="${APP_NAME}-isadmin" `# LDAP attribute from the schema` \
 	--set objectClass="${APP_NAME}-user" \
 	--set name="${APP_NAME}-isadmin" `# this is the name for UDM` \
-	--set shortDescription="Add admin rights to OpenProject" \
+	--set shortDescription="Give admin rights to OpenProject" \
 	--set longDescription="Whether this user shall be given admin permissions on OpenProject" \
 	--set tabName="OpenProject" `# This may create a new tab in the form` \
 	--set tabAdvanced='0' \
 	--set tabPosition='1' \
 	--set syntax='TrueFalseUp' `# should be a CheckBox` \
 	--set mayChange='1' \
-	--set default='FALSE' || die
+	--set default='FALSE'
 
 # Allow SAML to return additional attributes from LDAP
 ucr set saml/idp/ldap/get_attributes="${saml_idp_ldap_get_attributes}, 'sn', 'givenName', 'openproject-isadmin'"
@@ -139,16 +145,6 @@ joinscript_run_in_container openproject config:set OPENPROJECT_DISABLE__PASSWORD
 joinscript_run_in_container openproject configure
 # Allow auto-registration when going through SAML
 joinscript_run_in_container openproject run rake setting:set[self_registration=3]
-
-# This prevents the password rotation
-#joinscript_run_in_container ucr set server/password/change=false
-
-# Configure LDAP authentication in OpenProject
-#if [ "$(ucr get $APP_NAME/ldap_configured)" != "true" ] ; then
-#	echo "Configuring LDAP integration with $APP_NAME..."
-#	joinscript_run_in_container openproject run rake ldap:register url=$LDAP_URL name=UCS onthefly=true $LDAP_MAPPING
-#	ucr set $APP_NAME/ldap_configured=true
-#fi
 
 MAPPED_SAML_CONFIG="$(joinscript_container_file_touch "/opt/openproject/config/plugins/auth_saml/settings.yml")"
 cat > "$MAPPED_SAML_CONFIG" <<EOF
