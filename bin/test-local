@@ -1,4 +1,9 @@
-univention-app dev-populate-appcenter --new \
+OPTS="--new"
+if [ "$COMPONENT" != "" ]; then
+	OPTS="--component $COMPONENT"
+fi
+univention-app dev-populate-appcenter \
+	$OPTS \
 	--ini openproject.ini \
 	--join openproject.inst \
 	--unjoin openproject.uinst \
