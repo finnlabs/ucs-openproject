@@ -1,14 +1,17 @@
 <p>Welcome to OpenProject! You'll find below a short guide to help you get started.</p>
 
-<h2>First connection</h2>
-
 <p>After installation, your OpenProject instance should be available at
 https://domain.com/openproject/. It is automatically configured to use the UCS
-Single Sign On (SSO) infrastructure, so you can readily log into it with your
-existing UCS username and password.</p>
+Single Sign On (SSO) infrastructure, so you won't need to remember another
+login and password.</p>
 
-<p>You can give yourself admin permissions to OpenProject by checking the box in
-the OpenProject tab when editing a user account in UCS.</p>
+<h2>First connection</h2>
+
+<p>For UCS users to be able to log into the OpenProject instance, you need to
+enable the SAML authentication in the user settings, in the tab "Account".</p>
+
+<p>Also, you can give a user admin permissions to OpenProject by checking the
+box in the "OpenProject" tab when editing a user account in UCS.</p>
 
 <p>Once you're logged in to OpenProject, you should make sure to disable the
 default admin account that was automatically created.</p>
