@@ -3,7 +3,7 @@
 
 set -e
 
-VERSION=5
+VERSION=6
 
 . /usr/share/univention-lib/ldap.sh
 . /usr/share/univention-join/joinscripthelper.lib
@@ -17,7 +17,7 @@ ucs_removeServiceFromLocalhost "${APP_NAME}" "$@"
 
 # check whether this app is still installed elsewhere
 if ucs_isServiceUnused "${APP_NAME}" "$@"; then
-	udm container/cn remove --dn \
+	udm container/cn remove "$@" --dn \
 		"cn=$APP_NAME,cn=custom attributes,cn=univention,$ldap_base"
 fi
 
