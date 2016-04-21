@@ -110,9 +110,37 @@ ucs/web/overview/entries/service/SP/priority=50
 
 IDP_CERT_FINGERPRINT=$(wget --ca-certificate /etc/univention/ssl/ucsCA/CAcert.pem "https://$SSO_FQDN/simplesamlphp/saml2/idp/certificate" -O - | openssl x509 -noout -fingerprint | cut -f2 -d '=')
 
+MAPPED_HOUSEKEEPING_SCRIPT="$(joinscript_container_file_touch "/tmp/housekeeping.sh")"
+cat > "$MAPPED_HOUSEKEEPING_SCRIPT" <<CONFIG
+# Fix incorrect symlink for /var/db/openproject dir
+if [ -L /var/db/$APP_NAME/$APP_NAME ]; then
+	rm /var/db/$APP_NAME/$APP_NAME
+	tmpdir=/tmp/housekeeping-$(date +%s)
+	mv /var/db/$APP_NAME \$tmpdir/
+	ln -sf -T "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject" /var/db/$APP_NAME
+	mv \$tmpdir/$APP_NAME/* /var/db/$APP_NAME/
+fi
+# Make sure we persist all the conf files
+if [ ! -L /etc/$APP_NAME ]; then
+	mv /etc/$APP_NAME/* /var/lib/univention-appcenter/apps/$APP_NAME/conf/
+	rm -rf /etc/$APP_NAME
+	ln -sf -T /var/lib/univention-appcenter/apps/$APP_NAME/conf /etc/$APP_NAME
+fi
+CONFIG
+
+# Link data dirs to the docker volume persisted across restarts
+mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/conf"
+mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/data/mysql"
+mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject"
+joinscript_run_in_container bash -e /tmp/housekeeping.sh
+joinscript_run_in_container ln -sf -T "/var/lib/univention-appcenter/apps/$APP_NAME/conf" /etc/openproject
+joinscript_run_in_container ln -sf -T "/var/lib/univention-appcenter/apps/$APP_NAME/data/mysql" /var/lib/mysql
+joinscript_run_in_container ln -sf -T "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject" /var/db/openproject
+
 # Setup installer
-MAPPED_INSTALLER_DAT="$(joinscript_container_file_touch "$APP_INSTALLER_DAT")"
-cat > "$MAPPED_INSTALLER_DAT" <<CONFIG
+INSTALLER_DAT="/var/lib/univention-appcenter/apps/$APP_NAME/conf/installer.dat"
+if [ ! -e "$INSTALLER_DAT" ]; then
+	cat > "$INSTALLER_DAT" <<CONFIG
 mysql/autoinstall install
 mysql/ssl no
 server/autoinstall install
@@ -130,12 +158,7 @@ repositories/svn-path /var/db/${APP_NAME}/svn
 repositories/git-path /var/db/${APP_NAME}/git
 repositories/git-http-backend /usr/lib/git-core/git-http-backend/
 CONFIG
-
-# Link data dirs to the docker volume persisted across restarts
-mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/data/mysql"
-mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject"
-joinscript_run_in_container ln -sf "/var/lib/univention-appcenter/apps/$APP_NAME/data/mysql" /var/lib/mysql
-joinscript_run_in_container ln -sf "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject" /var/db/openproject
+fi
 
 # Set a proper locale, otherwise the db:seed task fails
 joinscript_run_in_container openproject config:set LOCALE=en
