@@ -4,7 +4,7 @@ set -e
 set -o pipefail
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=21
+VERSION=23
 
 . /usr/share/univention-lib/all.sh
 . /usr/share/univention-appcenter/joinscripthelper.sh
@@ -113,12 +113,12 @@ IDP_CERT_FINGERPRINT=$(wget --ca-certificate /etc/univention/ssl/ucsCA/CAcert.pe
 MAPPED_HOUSEKEEPING_SCRIPT="$(joinscript_container_file_touch "/tmp/housekeeping.sh")"
 cat > "$MAPPED_HOUSEKEEPING_SCRIPT" <<CONFIG
 # Fix incorrect symlink for /var/db/openproject dir
-if [ -L /var/db/$APP_NAME/$APP_NAME ]; then
-	rm /var/db/$APP_NAME/$APP_NAME
-	tmpdir=/tmp/housekeeping-$(date +%s)
-	mv /var/db/$APP_NAME \$tmpdir/
+if [ ! -L /var/db/$APP_NAME ]; then
+	# remove incorrect symlink
+	rm -f /var/db/$APP_NAME/$APP_NAME
+	mv /var/db/$APP_NAME/* /var/lib/univention-appcenter/apps/$APP_NAME/data/openproject/
+	rm -rf /var/db/$APP_NAME
 	ln -sf -T "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject" /var/db/$APP_NAME
-	mv \$tmpdir/$APP_NAME/* /var/db/$APP_NAME/
 fi
 # Make sure we persist all the conf files
 if [ ! -L /etc/$APP_NAME ]; then
