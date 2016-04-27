@@ -41,6 +41,14 @@ Register the app (do it every time you change stuff):
 
 ```bash
 ./bin/test-local
+#=> ... Component: openproject_20160427
+```
+
+If you've made changes, re-run the test-local script by specifying the same
+component than on the first run:
+
+```bash
+COMPONENT=openproject_20160427 ./bin/test-local
 ```
 
 Install the app:
@@ -54,6 +62,18 @@ Remove the app:
 ```bash
 univention-app remove openproject
 ```
+
+Tip: if you want to test a new version of the `openproject.inst` script without
+the need to remove and re-register, and re-install the app, you can do it as
+follows (don't forget to increase `VERSION`):
+
+```bash
+cp openproject.join /usr/lib/univention-install/50openproject.inst
+univention-run-join-scripts
+```
+
+Logs are available in `/var/log/univention/join.log`. Adding a `set -x` while
+you're testing your script might be a good idea to see what's going on.
 
 ## Releasing a new version
 
