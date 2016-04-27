@@ -4,7 +4,7 @@ set -e
 set -o pipefail
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=21
+VERSION=24
 
 . /usr/share/univention-lib/all.sh
 . /usr/share/univention-appcenter/joinscripthelper.sh
@@ -40,7 +40,7 @@ OID=6696237932
 # ucs_registerLDAPExtension will use the file basename in its dn...
 SCHEMA_FILE=$(mktemp -d)/$APP_NAME.schema
 # ucs_registerLDAPExtension is broken...
-APP_VERSION="$(docker exec $CONTAINER_ID bash -c "dpkg -l $APP_NAME | grep $APP_NAME | awk '{print $3}'")"
+APP_VERSION="$(docker exec $CONTAINER_ID bash -c "dpkg -l $APP_NAME | grep $APP_NAME | awk '{print \$3}'")"
 cat > $SCHEMA_FILE <<EOF
 attributetype ( 1.3.6.1.4.1.10176.99998.$OID.1.1 NAME '$APP_NAME-isadmin'
 	DESC 'OpenProject admin toggle'
@@ -56,8 +56,9 @@ objectclass ( 1.3.6.1.4.1.10176.99998.$OID.0.1 NAME '$APP_NAME-user'
 	)
 EOF
 
-# https://forge.univention.org/bugzilla/show_bug.cgi?id=38205
-ucs_registerLDAPExtension --packagename $APP_NAME --packageversion $APP_VERSION --schema "$SCHEMA_FILE"
+# We specify --packagename and --packageversion because of https://forge.univention.org/bugzilla/show_bug.cgi?id=38205
+# We prefix the version with z- because we messed the version number on the initial release, so z- ensures that our schema file gets updated if needed
+ucs_registerLDAPExtension "$@" --packagename "$APP_NAME" --packageversion "z-$APP_VERSION" --schema "$SCHEMA_FILE"
 
 # create a container where the extended attributes shall live
 udm container/cn create "$@" \
@@ -110,9 +111,37 @@ ucs/web/overview/entries/service/SP/priority=50
 
 IDP_CERT_FINGERPRINT=$(wget --ca-certificate /etc/univention/ssl/ucsCA/CAcert.pem "https://$SSO_FQDN/simplesamlphp/saml2/idp/certificate" -O - | openssl x509 -noout -fingerprint | cut -f2 -d '=')
 
+MAPPED_HOUSEKEEPING_SCRIPT="$(joinscript_container_file_touch "/tmp/housekeeping.sh")"
+cat > "$MAPPED_HOUSEKEEPING_SCRIPT" <<CONFIG
+# Fix incorrect symlink for /var/db/openproject dir
+if [ ! -L /var/db/$APP_NAME ]; then
+	# remove incorrect symlink
+	rm -f /var/db/$APP_NAME/$APP_NAME
+	test -d /var/db/$APP_NAME/files && cp -a /var/db/$APP_NAME/* /var/lib/univention-appcenter/apps/$APP_NAME/data/openproject/
+	rm -rf /var/db/$APP_NAME
+	ln -sf -T "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject" /var/db/$APP_NAME
+fi
+# Make sure we persist all the conf files
+if [ ! -L /etc/$APP_NAME ]; then
+	test -d /etc/$APP_NAME/conf.d && cp -a /etc/$APP_NAME/* /var/lib/univention-appcenter/apps/$APP_NAME/conf/openproject/
+	rm -rf /etc/$APP_NAME
+	ln -sf -T /var/lib/univention-appcenter/apps/$APP_NAME/conf/openproject /etc/$APP_NAME
+fi
+CONFIG
+
+# Link data dirs to the docker volume persisted across restarts
+mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/conf/openproject"
+mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/data/mysql"
+mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject"
+joinscript_run_in_container bash -e /tmp/housekeeping.sh
+joinscript_run_in_container ln -sf -T "/var/lib/univention-appcenter/apps/$APP_NAME/conf/openproject" /etc/openproject
+joinscript_run_in_container ln -sf -T "/var/lib/univention-appcenter/apps/$APP_NAME/data/mysql" /var/lib/mysql
+joinscript_run_in_container ln -sf -T "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject" /var/db/openproject
+
 # Setup installer
-MAPPED_INSTALLER_DAT="$(joinscript_container_file_touch "$APP_INSTALLER_DAT")"
-cat > "$MAPPED_INSTALLER_DAT" <<CONFIG
+INSTALLER_DAT="/var/lib/univention-appcenter/apps/$APP_NAME/conf/openproject/installer.dat"
+if [ ! -e "$INSTALLER_DAT" ]; then
+	cat > "$INSTALLER_DAT" <<CONFIG
 mysql/autoinstall install
 mysql/ssl no
 server/autoinstall install
@@ -130,12 +159,12 @@ repositories/svn-path /var/db/${APP_NAME}/svn
 repositories/git-path /var/db/${APP_NAME}/git
 repositories/git-http-backend /usr/lib/git-core/git-http-backend/
 CONFIG
+fi
 
-# Link data dirs to the docker volume persisted across restarts
-mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/data/mysql"
-mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject"
-joinscript_run_in_container ln -sf "/var/lib/univention-appcenter/apps/$APP_NAME/data/mysql" /var/lib/mysql
-joinscript_run_in_container ln -sf "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject" /var/db/openproject
+# Make sure the certificates are up to date
+sed -i "s|server/ssl_cert.*|server/ssl_cert $CONTAINER_SSL_PATH/cert.pem|" "$INSTALLER_DAT"
+sed -i "s|server/ssl_ca.*|server/ssl_ca $CONTAINER_SSL_PATH/cert.pem|" "$INSTALLER_DAT"
+sed -i "s|server/ssl_key.*|server/ssl_key $CONTAINER_SSL_PATH/private.key|" "$INSTALLER_DAT"
 
 # Set a proper locale, otherwise the db:seed task fails
 joinscript_run_in_container openproject config:set LOCALE=en
