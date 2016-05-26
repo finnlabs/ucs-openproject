@@ -103,3 +103,26 @@ upload it using the form at <https://upload.univention.de/upload.php>.
 sure that you're not overwriting any configuration file that may have been
 updated by the package or the user.
 
+## Tips
+
+Re-run the joinscript step with a newer version, without uninstalling/re-installing the app:
+
+```
+cp openproject.inst /usr/lib/univention-install/50openproject.inst
+univention-run-join-scripts
+```
+
+Look at logs of join scripts:
+
+```
+cat /var/log/univention/join.log
+```
+
+Testing a package upgrade before releasing to the official app center:
+
+```
+univention-app remove openproject --do-not-backup
+ucr set repository/app_center/server=appcenter-test.software-univention.de
+univention-app install openproject=5.0.15
+univention-app upgrade openproject
+```
