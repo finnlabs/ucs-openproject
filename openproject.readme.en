@@ -3,7 +3,8 @@
 <p>After installation, your OpenProject instance should be available at
 https://domain.com/openproject/. It is automatically configured to use the UCS
 Single Sign On (SSO) infrastructure, so you won't need to remember another
-login and password.</p>
+login and password. Please make sure that your UCS environment is configured
+for Single Sign-On.</p>
 
 <h2>First connection</h2>
 
