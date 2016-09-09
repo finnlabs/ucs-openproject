@@ -15,7 +15,7 @@ dist:
 	cp openproject.inst $(DIST_DIR)/metadata/
 	cp openproject.uinst $(DIST_DIR)/metadata/
 	cp openproject.svg $(DIST_DIR)/metadata/
-	cp openproject.readme $(DIST_DIR)/readme
+	cp openproject.readme* $(DIST_DIR)/
 
 clean:
 	rm -rf $(DIST_DIR)

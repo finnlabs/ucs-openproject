@@ -1,0 +1,24 @@
+#!/bin/bash
+# This script is used to publish new packages to the UCS App Center automatically
+
+set -ex
+
+if [ -z "$VERSION" ]; then
+	echo "You must give the app VERSION as env variable"
+	exit 1
+fi
+
+if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
+	echo "You must pass USERNAME or PASSWORD as env variables for UCS self-service authentication"
+	exit 1
+fi
+
+BRANCH=${BRANCH:="stable/6"}
+wget -qO - https://deb.packager.io/key | apt-key add -
+echo "deb https://deb.packager.io/gh/opf/openproject-ce wheezy $BRANCH" | tee /etc/apt/sources.list.d/openproject-ce.list
+apt-get update
+make all
+
+echo "$USERNAME" > ~/univention-appcenter-user
+echo "$PASSWORD" > ~/univention-appcenter-pwd
+./bin/univention-appcenter-selfservice new-version-upload-publish --noninteractive --new-app-version "$VERSION" --clear 4.1 openproject *.deb
