@@ -68,7 +68,7 @@ the need to remove and re-register, and re-install the app, you can do it as
 follows (don't forget to increase `VERSION`):
 
 ```bash
-cp openproject.join /usr/lib/univention-install/50openproject.inst
+cp dist/openproject.join /usr/lib/univention-install/50openproject.inst
 univention-run-join-scripts
 ```
 
@@ -95,7 +95,7 @@ upload it using the form at <https://upload.univention.de/upload.php>.
 
 ## Important
 
-* Only increment the `VERSION` numbers of the `inst`/`uinst` whne you've made
+* Only increment the `VERSION` numbers of the `inst`/`uinst` when you've made
   changes.
 
 * The `inst` join script MUST BE IDEMPOTENT! See
@@ -108,7 +108,7 @@ updated by the package or the user.
 Re-run the joinscript step with a newer version, without uninstalling/re-installing the app:
 
 ```
-cp openproject.inst /usr/lib/univention-install/50openproject.inst
+cp dist/openproject.inst /usr/lib/univention-install/50openproject.inst
 univention-run-join-scripts
 ```
 
@@ -127,7 +127,7 @@ univention-app install openproject=5.0.15
 univention-app upgrade openproject
 ```
 
-## Release a new version
+## Release a new version to the AppCenter with the selfservice app
 
 Build the docker image that will be used to run the commands:
 

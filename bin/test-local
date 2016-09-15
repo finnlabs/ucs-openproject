@@ -4,7 +4,7 @@ if [ "$COMPONENT" != "" ]; then
 fi
 univention-app dev-populate-appcenter \
 	$OPTS \
-	--ini openproject.ini \
-	--join openproject.inst \
-	--unjoin openproject.uinst \
+	--ini dist/openproject.ini \
+	--join dist/openproject.inst \
+	--unjoin dist/openproject.uinst \
 	--unmaintained openproject dialog libevent-core-2.0-5 libevent-extra-2.0-5
