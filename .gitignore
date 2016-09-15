@@ -1,3 +1,4 @@
-dist/
 *.deb
 *.tar.gz
+*.env
+*.swp

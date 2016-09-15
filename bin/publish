@@ -8,17 +8,15 @@ if [ -z "$VERSION" ]; then
 	exit 1
 fi
 
-if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
-	echo "You must pass USERNAME or PASSWORD as env variables for UCS self-service authentication"
-	exit 1
+if [ -z "$BRANCH" ]; then
+	echo "You must give the app BRANCH (used to fetch the packages from packager.io) as env variable"
 fi
 
-BRANCH=${BRANCH:="stable/6"}
 wget -qO - https://deb.packager.io/key | apt-key add -
 echo "deb https://deb.packager.io/gh/opf/openproject-ce wheezy $BRANCH" | tee /etc/apt/sources.list.d/openproject-ce.list
 apt-get update
 make all
 
-echo "$USERNAME" > ~/univention-appcenter-user
-echo "$PASSWORD" > ~/univention-appcenter-pwd
-./bin/univention-appcenter-selfservice new-version-upload-publish --noninteractive --new-app-version "$VERSION" --clear 4.1 openproject *.deb
+sed "s|Version = .+|Version = $VERSION|" -i dist/openproject.ini
+
+./bin/univention-appcenter-selfservice new-version-upload-publish --noninteractive --new-app-version "$VERSION" --clear 4.1 openproject openproject.tar.gz

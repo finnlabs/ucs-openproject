@@ -1,6 +1,7 @@
+SHELL := /bin/bash
 DIST_DIR=dist
 
-all: clean dist download zip
+all: clean download zip
 
 zip:
 	tar czf openproject.tar.gz -C $(DIST_DIR) .
@@ -9,14 +10,7 @@ download:
 	mkdir -p $(DIST_DIR)/packages/amd64
 	cd $(DIST_DIR)/packages/amd64 && apt-get download dialog libevent-core-2.0-5 libevent-extra-2.0-5 openproject
 
-dist: 
-	mkdir -p $(DIST_DIR)/metadata
-	cp openproject.ini $(DIST_DIR)/metadata/
-	cp openproject.inst $(DIST_DIR)/metadata/
-	cp openproject.uinst $(DIST_DIR)/metadata/
-	cp openproject.svg $(DIST_DIR)/metadata/
-	cp openproject.readme* $(DIST_DIR)/
-
 clean:
-	rm -rf $(DIST_DIR)
+	for file in $(DIST_DIR)/openproject_20*; do ( [ -f "$$file" ] && mv "$$file" "$${file/_*./.}" || true ); done 
+	rm -f $(DIST_DIR)/packages/amd64/*
 	rm -f openproject.tar.gz

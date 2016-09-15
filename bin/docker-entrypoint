@@ -1,0 +1,13 @@
+#!/bin/bash
+set -e
+set -o pipefail
+
+if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
+	echo "You must pass USERNAME or PASSWORD as env variables for UCS self-service authentication"
+	exit 1
+fi
+
+echo "$USERNAME" > ~/univention-appcenter-user
+echo "$PASSWORD" > ~/univention-appcenter-pwd
+
+exec "$@"

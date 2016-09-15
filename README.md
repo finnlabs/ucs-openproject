@@ -126,3 +126,36 @@ ucr set repository/app_center/server=appcenter-test.software-univention.de
 univention-app install openproject=5.0.15
 univention-app upgrade openproject
 ```
+
+## Release a new version
+
+Build the docker image that will be used to run the commands:
+
+    docker build -t finnlabs/ucs .
+
+Add your UCS username and password for the self-service center to a ucs.env file:
+
+    echo "USERNAME=crohr" > ucs.env
+    echo "PASSWORD=p4ssw0rd" >> ucs.env
+
+You can now launch a docker container to play with the release script:
+
+    docker run --rm -it --env-file ucs.env -v $(pwd):/workspace finnlabs/ucs bash
+    VERSION=6.0.4 BRANCH=stable/6 ./bin/publish
+
+The above command will update the Version number in the ini file from the
+`dist/` folder, fetch the packages from the given BRANCH, and zip everything
+into a `openproject.tar.gz` file. This file will then be sent to the UCS API to
+create a new app version from it (untested yet, upload fails).
+
+Note that ideally you should re-download the tarball for the previous version
+and unpack it into `dist/` before releasing a new version. This is because UCS
+may have made some changes on their side. You could do that with (replace
+`openproject_20160909154556` with the latest component published in the App
+Center):
+
+    ./bin/univention-appcenter-selfservice download 4.1 openproject_20160909154556
+    tar xzf openproject_20160909154556.tar.gz -C dist/
+
+The selfservice UI is available from
+<https://selfservice.software-univention.de/univention-management-console/#module=appcenter-selfservice::0:>.
