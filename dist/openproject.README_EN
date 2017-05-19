@@ -1,23 +1,16 @@
 <p>Welcome to OpenProject! You'll find below a short guide to help you get started.</p>
 
-<p>After installation, your OpenProject instance should be available at
-https://domain.com/openproject/. It is already integrated with the UCS identity
-management. Users for OpenProject simply need to be activated within the user
-account settings in UCS. Afterwards, the user can login to OpenProject with his
-domain credentials.</p>
+<p>After installation, your OpenProject instance should be available at https://domain.com/openproject/. It is already integrated with the UCS identity management. Users for OpenProject simply need to be activated within the user account settings in UCS. Afterwards, the user can login to OpenProject with his domain credentials.
+</p>
+<h2>
+	Integrated into the UCS Identity Management
+</h2>
 
-<h2>Web single sign-on</h2>
+<p>
+Users may be activated by in UCS by clicking on &quot;Activate user for OpenProject&quot; in the module &quot;Users&quot; (tab &quot;Apps&quot;). The checkbox &quot;Give admin rights to OpenProject&quot; controls whether the user is also an admin for OpenProject.</p>
 
-<p>OpenProject also comes pre-configured to use the UCS Single Sign On (SSO)
-infrastructure, so you won't need to remember another login and password.</p>
+<p>Once you're logged in to OpenProject, you should make sure to disable the default admin account that was automatically created.</p>
 
-<p>For UCS users to be able to log into the OpenProject instance via SSO, you need to
-enable the SAML authentication in the user settings, in the tab "Account".</p>
-
-<p>Also, you can give a user admin permissions to OpenProject by checking the
-box in the "OpenProject" tab when editing a user account in UCS.</p>
-
-<p>Once you're logged in to OpenProject, you should make sure to disable the
-default admin account that was automatically created.</p>
-
-<p>You're all set!</p>
+<p>
+	You're all set!
+</p>

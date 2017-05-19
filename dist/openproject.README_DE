@@ -1,29 +1,18 @@
-<p>Willkommen zu OpenProject! Hier finden Sie eine kurze Schnellstart-Anleitung.</p>
+<p>
+	Willkommen zu OpenProject! Hier finden Sie eine kurze Schnellstart-Anleitung.
+</p>
+<p>
+	Nach der Installation sollte Ihr OpenProject unter https://IHRE-DOMAIN/openproject/ zur Verfügung stehen. Es ist bereits in das UCS Identity Management integriert. OpenProject Benutzer können einfach in den Benutzerkontoeinstellungen in UCS aktiviert werden. Anschließend steht die Anmeldung zu OpenProject mit den Anmeldedaten des Benutzers für die UCS-Umgebung zur Verfügung.
+</p>
+<h2>
+	Integriert in das UCS Identity Management
+</h2>
+<p>
+	Benutzer können einfach über den Reiter &quot;Apps&quot; im &quot;Benutzer&quot;-Modul für OpenProject freigeschaltet werden, indem &quot;Nutzer für OpenProject aktivieren&quot; angeklickt wird. Über das Häkchen &quot;Admin-Rechte für OpenProject&quot; kann man dem Nutzer darüber hinaus noch Admin-Rechte geben.
+</p>
 
-<p>Nach der Installation sollte Ihr OpenProject unter
-https://IHRE-DOMAIN/openproject/ zur Verfügung stehen. Es ist bereits in das
-UCS Identity Management integriert. OpenProject Benutzer können einfach in den
-Benutzerkontoeinstellungen in UCS aktiviert werden. Anschließend steht die
-Anmeldung zu OpenProject mit den Anmeldedaten des Benutzers für die
-UCS-Umgebung zur Verfügung.</p>
+<p>Sobald Sie in OpenProject eingeloggt sind, sollten Sie als erstes das Standard Adminkonto deaktivieren, das bei der Installation automatisch erstellt wird.</p>
 
-<h2>Web Single Sign-On</h2>
-
-<p>OpenProject ist bereits für die Nutzung der Single Sign-On (SSO)
-Infrastruktur in UCS vorkonfiguriert. So müssen Sie sich keinen anderen
-Benutzernamen oder ein zusätzliches Passwort merken.</p>
-
-<p>Damit sich UCS-Benutzer an OpenProject via SSO anmelden können, muss zuerst die SAML
-Authentifizierung in den Benutzereinstellungen im Tab "Konto" aktiviert werden.
-Stellen Sie hierfür auch sicher, dass Ihre UCS-Umgebung entsprechend für Single
-Sign-On konfiguriert ist.</p>
-
-<p>Des Weiteren können Sie einem Benutzer auch Admin-Rechte für OpenProject
-geben, indem Sie die Checkbox im "OpenProject" Tab der Benutzereinstellungen
-entsprechend aktivieren.</p>
-
-<p>Sobald Sie in OpenProject eingeloggt sind, sollten Sie als erstes das
-Standard Adminkonto deaktivieren, das bei der Installation automatisch erstellt
-wird.</p>
-
-<p>Fertig!</p>
+<p>
+	Fertig!
+</p>
