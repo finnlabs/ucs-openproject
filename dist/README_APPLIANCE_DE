@@ -1,0 +1,26 @@
+<p>
+	Damit Benutzer sich an OpenProject anmelden können, müssen die folgenden Schritte abgeschlossen werden:
+</p>
+<ol>
+	<li>
+		Erstellen Sie eine E-Mail Domäne für Ihre UCS-Umgebung unter <i>Domäne</i> → <i>E-Mail</i>, z.B. &quot;ucs.example&quot;
+	</li>
+	<li>
+		Erstellen Sie ein Benutzerkonto für jeden Benutzer, der sich an OpenProject anmelden können soll.
+	</li>
+</ol>
+<p>
+	<b>Hinweis</b>:
+</p>
+<ul>
+	<li>
+		Bitte stellen Sie sicher, dass die erforderlichen Attribute angegeben sind und dass Sie eine <b>primäre E-Mailadresse</b> für den Benutzer vergeben.
+	</li>
+	<li>
+		Des Weiteren müssen Sie den Benutzer aktivieren, indem Sie im Benutzer Modul im Reiter <i>Apps</i> auf <i>Nutzer für OpenProject aktivieren</i> klicken.
+		<br>
+	</li>
+	<li>
+		Über die Checkbox <i>Admin-Rechte für OpenProject</i> kann man dem Benutzer darüber hinaus noch Admin-Rechte vergeben.
+	</li>
+</ul>
