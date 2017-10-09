@@ -8,11 +8,12 @@
 	Integriert in das UCS Identity Management
 </h2>
 <p>
-	Benutzer können einfach über den Reiter &quot;Apps&quot; im &quot;Benutzer&quot;-Modul für OpenProject freigeschaltet werden, indem &quot;Nutzer für OpenProject aktivieren&quot; angeklickt wird. Über das Häkchen &quot;Admin-Rechte für OpenProject&quot; kann man dem Nutzer darüber hinaus noch Admin-Rechte geben.
+	Benutzer können einfach über den Reiter &quot;Apps&quot; im &quot;Benutzer&quot;-Modul für OpenProject freigeschaltet werden, indem &quot;Nutzer für OpenProject aktivieren&quot; angeklickt wird. Über das Häkchen &quot;Admin-Rechte für OpenProject&quot; kann man dem Nutzer darüber hinaus noch Admin-Rechte geben. Bitte stellen Sie sicher, dass der Benutzer eine primäre E-Mailadresse gesetzt hat.
+	<br>
 </p>
-
-<p>Sobald Sie in OpenProject eingeloggt sind, sollten Sie als erstes das Standard Adminkonto deaktivieren, das bei der Installation automatisch erstellt wird.</p>
-
+<p>
+	Sobald Sie in OpenProject eingeloggt sind, sollten Sie als erstes das Standard Adminkonto deaktivieren, das bei der Installation automatisch erstellt wird.
+</p>
 <p>
 	Fertig!
 </p>
