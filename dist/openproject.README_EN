@@ -1,16 +1,19 @@
-<p>Welcome to OpenProject! You'll find below a short guide to help you get started.</p>
-
-<p>After installation, your OpenProject instance should be available at https://domain.com/openproject/. It is already integrated with the UCS identity management. Users for OpenProject simply need to be activated within the user account settings in UCS. Afterwards, the user can login to OpenProject with his domain credentials.
+<p>
+	Welcome to OpenProject! You'll find below a short guide to help you get started.
+</p>
+<p>
+	After installation, your OpenProject instance should be available at https://domain.com/openproject/. It is already integrated with the UCS identity management. Users for OpenProject simply need to be activated within the user account settings in UCS. Afterwards, the user can login to OpenProject with his domain credentials.
 </p>
 <h2>
 	Integrated into the UCS Identity Management
 </h2>
-
 <p>
-Users may be activated by in UCS by clicking on &quot;Activate user for OpenProject&quot; in the module &quot;Users&quot; (tab &quot;Apps&quot;). The checkbox &quot;Give admin rights to OpenProject&quot; controls whether the user is also an admin for OpenProject.</p>
-
-<p>Once you're logged in to OpenProject, you should make sure to disable the default admin account that was automatically created.</p>
-
+	Users may be activated by in UCS by clicking on &quot;Activate user for OpenProject&quot; in the module &quot;Users&quot; (tab &quot;Apps&quot;). The checkbox &quot;Give admin rights to OpenProject&quot; controls whether the user is also an admin for OpenProject. Please make sure that the user has a &quot;Primary email address&quot; definied.
+	<br>
+</p>
+<p>
+	Once you're logged in to OpenProject, you should make sure to disable the default admin account that was automatically created.
+</p>
 <p>
 	You're all set!
 </p>
