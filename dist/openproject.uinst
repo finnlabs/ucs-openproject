@@ -15,12 +15,6 @@ APP_NAME="openproject"
 # revert ucs_addServiceToLocalhost
 ucs_removeServiceFromLocalhost "${APP_NAME}" "$@"
 
-# check whether this app is still installed elsewhere
-if ucs_isServiceUnused "${APP_NAME}" "$@"; then
-	udm container/cn remove "$@" --dn \
-		"cn=$APP_NAME,cn=custom attributes,cn=univention,$ldap_base"
-fi
-
 # revert joinscript_save_current_version - so that the join script
 # would run again if the app is reinstalled
 joinscript_remove_script_from_status_file "$APP_NAME"

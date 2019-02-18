@@ -4,7 +4,7 @@ set -e
 set -o pipefail
 
 # Increment this whenever you make a change, otherwise it won't be re-executed!
-VERSION=24
+VERSION=26
 
 . /usr/share/univention-lib/all.sh
 . /usr/share/univention-appcenter/joinscripthelper.sh
@@ -12,195 +12,15 @@ VERSION=24
 joinscript_init
 eval "$(ucr shell)"
 
-APP_NAME=openproject
-APP_PREFIX=/openproject
-APP_INSTALLER_DAT="/etc/${APP_NAME}/installer.dat"
-HOSTNAME="localhost"
-
-# Get LDAP details for authentication
-LDAP_HOST="$ldap_server_name"
-LDAP_PORT="$ldap_server_port"
-LDAP_BASE="$ldap_base"
-
-LDAP_USERNAME="$(joinscript_run_in_container ucr get ldap/hostdn)"
-LDAP_PASSWORD="$(joinscript_run_in_container cat /etc/machine.secret)"
-
-LDAP_MAPPING="map_login=uid map_firstname=givenName map_lastname=sn map_mail=mailPrimaryAddress"
-LDAP_URL="ldap://$LDAP_USERNAME:$LDAP_PASSWORD@$LDAP_HOST:$LDAP_PORT/cn=users,$LDAP_BASE"
-
-# joinscript_run_in_container function is broken, so let's do this ourselves
-CONTAINER_ID=$(ucr get appcenter/apps/$APP_NAME/container)
-CONTAINER_SSL_PATH="$(docker exec $CONTAINER_ID bash -c 'echo /etc/univention/ssl/$(ucr get hostname).$(ucr get domainname)')"
-
-# SSO
-SSO_FQDN="${ucs_server_sso_fqdn:-ucs-sso.$domainname}"
-SSO_LOGIN_PAGE="https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php"
-
-OID=6696237932
-# ucs_registerLDAPExtension will use the file basename in its dn...
-SCHEMA_FILE=$(mktemp -d)/$APP_NAME.schema
-# ucs_registerLDAPExtension is broken...
-APP_VERSION="$(docker exec $CONTAINER_ID bash -c "dpkg -l $APP_NAME | grep $APP_NAME | awk '{print \$3}'")"
-cat > $SCHEMA_FILE <<EOF
-attributetype ( 1.3.6.1.4.1.10176.99998.$OID.1.1 NAME '$APP_NAME-isadmin'
-	DESC 'OpenProject admin toggle'
-	EQUALITY caseIgnoreMatch
-	SUBSTR caseIgnoreSubstringsMatch
-	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE
-	)
-objectclass ( 1.3.6.1.4.1.10176.99998.$OID.0.1 NAME '$APP_NAME-user'
-	DESC 'OpenProject user'
-	SUP top AUXILIARY
-	MUST ( cn )
-	MAY ( ${APP_NAME}-isadmin )
-	)
-EOF
-
-# We specify --packagename and --packageversion because of https://forge.univention.org/bugzilla/show_bug.cgi?id=38205
-# We prefix the version with z- because we messed the version number on the initial release, so z- ensures that our schema file gets updated if needed
-ucs_registerLDAPExtension "$@" --packagename "$APP_NAME" --packageversion "z-$APP_VERSION" --schema "$SCHEMA_FILE"
-
-# create a container where the extended attributes shall live
-udm container/cn create "$@" \
-	--ignore_exists \
-	--position "cn=custom attributes,cn=univention,$ldap_base" \
-	--set name="$APP_NAME"
-
-udm settings/extended_attribute create "$@" \
-	--ignore_exists \
-	--position "cn=${APP_NAME},cn=custom attributes,cn=univention,$ldap_base" \
-	--set module="users/user" `# extending users` \
-	--set ldapMapping="${APP_NAME}-isadmin" `# LDAP attribute from the schema` \
-	--set objectClass="${APP_NAME}-user" \
-	--set name="${APP_NAME}-isadmin" `# this is the name for UDM` \
-	--set shortDescription="Give admin rights to OpenProject" \
-	--set longDescription="Whether this user shall be given admin permissions on OpenProject" \
-	--set tabName="OpenProject" `# This may create a new tab in the form` \
-	--set tabAdvanced='0' \
-	--set tabPosition='1' \
-	--set syntax='TrueFalseUp' `# should be a CheckBox` \
-	--set mayChange='1' \
-	--set default='FALSE'
-
-# Allow SAML to return additional attributes from LDAP
-ucr set saml/idp/ldap/get_attributes="${saml_idp_ldap_get_attributes}, 'sn', 'givenName', 'openproject-isadmin'"
-
-# Register new SAML service provider via udm
-udm saml/serviceprovider create "$@" \
-	--ignore_exists \
-	--position "cn=saml-serviceprovider,cn=univention,$ldap_base" \
-	--set isActivated=TRUE \
-	--set Identifier="$APP_NAME" \
-	--set NameIDFormat="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified" \
-	--set simplesamlAttributes=TRUE \
-	--set LDAPattributes='mailPrimaryAddress' \
-	--set LDAPattributes='sn' \
-	--set LDAPattributes='givenName' \
-	--set LDAPattributes='openproject-isadmin' \
-	--set AssertionConsumerService="https://$hostname.$domainname/openproject/auth/ucs/callback" \
-	--set simplesamlNameIDAttribute="uid" \
-	--set privacypolicyURL="https://openproject.org/policy" \
-	--set serviceProviderOrganizationName="OpenProject" \
-	--set serviceproviderdescription="Sign into OpenProject with your existing credentials."
-
-# Add direct login link to ucs-overview page
-ucr set ucs/web/overview/entries/service/SP/description="OpenProject Login" \
-ucs/web/overview/entries/service/SP/label="OpenProject SSO" \
-ucs/web/overview/entries/service/SP/link="https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php?spentityid=$APP_NAME" \
-ucs/web/overview/entries/service/SP/priority=50
-
-IDP_CERT_FINGERPRINT=$(wget --ca-certificate /etc/univention/ssl/ucsCA/CAcert.pem "https://$SSO_FQDN/simplesamlphp/saml2/idp/certificate" -O - | openssl x509 -noout -fingerprint | cut -f2 -d '=')
-
-MAPPED_HOUSEKEEPING_SCRIPT="$(joinscript_container_file_touch "/tmp/housekeeping.sh")"
-cat > "$MAPPED_HOUSEKEEPING_SCRIPT" <<CONFIG
-# Fix incorrect symlink for /var/db/openproject dir
-if [ ! -L /var/db/$APP_NAME ]; then
-	# remove incorrect symlink
-	rm -f /var/db/$APP_NAME/$APP_NAME
-	test -d /var/db/$APP_NAME/files && cp -a /var/db/$APP_NAME/* /var/lib/univention-appcenter/apps/$APP_NAME/data/openproject/
-	rm -rf /var/db/$APP_NAME
-	ln -sf -T "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject" /var/db/$APP_NAME
+oldschemaversion="$(udm settings/ldapschema list --filter "(&(cn=openproject)(packageversion=z*))" "$@" | sed -n '/^DN: /p' | sed -e 's/^DN: //g')"
+if [ -n "$oldschemaversion" ]; then
+  udm settings/ldapschema remove --dn "$oldschemaversion" "$@"
+  joinscript_register_schema "$@"
 fi
-# Make sure we persist all the conf files
-if [ ! -L /etc/$APP_NAME ]; then
-	test -d /etc/$APP_NAME/conf.d && cp -a /etc/$APP_NAME/* /var/lib/univention-appcenter/apps/$APP_NAME/conf/openproject/
-	rm -rf /etc/$APP_NAME
-	ln -sf -T /var/lib/univention-appcenter/apps/$APP_NAME/conf/openproject /etc/$APP_NAME
-fi
-CONFIG
-
-# Link data dirs to the docker volume persisted across restarts
-mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/conf/openproject"
-mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/data/mysql"
-mkdir -p "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject"
-joinscript_run_in_container bash -e /tmp/housekeeping.sh
-joinscript_run_in_container ln -sf -T "/var/lib/univention-appcenter/apps/$APP_NAME/conf/openproject" /etc/openproject
-joinscript_run_in_container ln -sf -T "/var/lib/univention-appcenter/apps/$APP_NAME/data/mysql" /var/lib/mysql
-joinscript_run_in_container ln -sf -T "/var/lib/univention-appcenter/apps/$APP_NAME/data/openproject" /var/db/openproject
-
-# Setup installer
-INSTALLER_DAT="/var/lib/univention-appcenter/apps/$APP_NAME/conf/openproject/installer.dat"
-if [ ! -e "$INSTALLER_DAT" ]; then
-	cat > "$INSTALLER_DAT" <<CONFIG
-mysql/autoinstall install
-mysql/ssl no
-server/autoinstall install
-server/hostname ${HOSTNAME}
-server/ssl yes
-server/ssl_cert $CONTAINER_SSL_PATH/cert.pem
-server/ssl_ca $CONTAINER_SSL_PATH/cert.pem
-server/ssl_key $CONTAINER_SSL_PATH/private.key
-server/server_path_prefix ${APP_PREFIX}
-smtp/autoinstall skip
-memcached/autoinstall install
-repositories/svn-install install
-repositories/git-install install
-repositories/svn-path /var/db/${APP_NAME}/svn
-repositories/git-path /var/db/${APP_NAME}/git
-repositories/git-http-backend /usr/lib/git-core/git-http-backend/
-CONFIG
-fi
-
-# Make sure the certificates are up to date
-sed -i "s|server/ssl_cert.*|server/ssl_cert $CONTAINER_SSL_PATH/cert.pem|" "$INSTALLER_DAT"
-sed -i "s|server/ssl_ca.*|server/ssl_ca $CONTAINER_SSL_PATH/cert.pem|" "$INSTALLER_DAT"
-sed -i "s|server/ssl_key.*|server/ssl_key $CONTAINER_SSL_PATH/private.key|" "$INSTALLER_DAT"
-
-# Set a proper locale, otherwise the db:seed task fails
-joinscript_run_in_container openproject config:set LOCALE=en
-joinscript_run_in_container openproject config:set EMAIL_DELIVERY_METHOD=sendmail
-joinscript_run_in_container openproject config:set OMNIAUTH_DIRECT_LOGIN_PROVIDER=ucs
-joinscript_run_in_container openproject config:set OPENPROJECT_DISABLE__PASSWORD__LOGIN=true
-joinscript_run_in_container openproject configure
-# Allow auto-registration when going through SAML
-joinscript_run_in_container openproject run rake setting:set[self_registration=3]
-
-MAPPED_SAML_CONFIG="$(joinscript_container_file_touch "/opt/openproject/config/plugins/auth_saml/settings.yml")"
-cat > "$MAPPED_SAML_CONFIG" <<EOF
-ucs:
-  name: "ucs"
-  display_name: "UCS"
-  # Use the default SAML icon
-  icon: "auth_provider-saml.png"
-  # omniauth-saml config
-  assertion_consumer_service_url: "https://$hostname.$domainname/openproject/auth/ucs/callback"
-  issuer: "$APP_NAME"
-  idp_sso_target_url: "https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php"
-  idp_cert_fingerprint: "$IDP_CERT_FINGERPRINT"
-  attribute_statements:
-    email: ['mailPrimaryAddress']
-    name: ['gecos']
-    first_name: ['givenName']
-    last_name: ['sn']
-    admin: ['openproject-isadmin']
-EOF
-
-# Finally, restart the whole thing (nohup seems required)
-joinscript_run_in_container nohup service openproject restart
 
 # Best practice: Adds the service to the host. Then LDAP can be queried
 # to lookup where the app is already installed. Also useful for unjoin
-ucs_addServiceToLocalhost "${APP_NAME}" "$@"
+ucs_addServiceToLocalhost "${APP}" "$@"
 
 # when everything worked fine, tell the system that this VERSION does
 # not need to be run again
