@@ -4,6 +4,19 @@
 <p>
 	Nach der Installation sollte Ihr OpenProject unter https://IHRE-DOMAIN/openproject/ zur Verfügung stehen. Es ist bereits in das UCS Identity Management integriert. OpenProject Benutzer können einfach in den Benutzerkontoeinstellungen in UCS aktiviert werden. Anschließend steht die Anmeldung zu OpenProject mit den Anmeldedaten des Benutzers für die UCS-Umgebung zur Verfügung.
 </p>
+<p>
+	Wie Sie mit dem selbstsignierten Zertifikat von UCS in Ihrem Browser umgehen, erfahren Sie in den folgenden Artikeln:
+</p>
+<ul>
+	<li>
+		<a href="https://help.univention.com/t/11025" target="_blank">How-to: Accept self signed certificate in Mozilla Firefox</a>
+	</li>
+	<li>
+		<a href="https://help.univention.com/t/11026" target="_blank">How-to: Accept self signed certificate in Chrome/Chromium</a>
+	</li>
+</ul>
+<p>
+</p>
 <h2>
 	Integriert in das UCS Identity Management
 </h2>
