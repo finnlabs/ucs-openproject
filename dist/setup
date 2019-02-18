@@ -1,0 +1,152 @@
+#!/bin/bash
+
+. /usr/share/univention-docker-container-mode/lib.sh
+
+/usr/share/univention-docker-container-mode/setup "$@" || die "Setup failed"
+
+set -e
+set -o pipefail
+
+ucr set server/password/change=false
+
+eval "$(ucr shell)"
+
+LDAP_HOST="$ldap_server_name"
+LDAP_PORT="$ldap_server_port"
+LDAP_BASE="$ldap_base"
+LDAP_USERNAME="$ldap_hostdn"
+LDAP_PASSWORD="$(cat /etc/machine.secret)"
+
+DOCKER_HOST="$(ucr get docker/host/name)"
+
+APP_PREFIX="/openproject"
+
+# Setup installer
+INSTALLER_DAT="/etc/openproject/installer.dat"
+cat > "$INSTALLER_DAT" <<CONFIG
+mysql/autoinstall reuse
+mysql/db_host ${DOCKER_HOST}
+mysql/db_source_host ${HOSTNAME}
+mysql/db_port 3306
+mysql/db_username openproject
+mysql/db_password $(cat /etc/mysql-openproject.secret)
+mysql/db_name openproject
+mysql/ssl no
+server/autoinstall install
+server/hostname localhost
+server/ssl no
+server/server_path_prefix ${APP_PREFIX}
+smtp/autoinstall skip
+memcached/autoinstall install
+repositories/svn-install install
+repositories/git-install install
+repositories/svn-path /var/lib/univention-appcenter/apps/openproject/data/openproject/svn
+repositories/git-path /var/lib/univention-appcenter/apps/openproject/data/openproject/git
+repositories/git-http-backend /usr/lib/git-core/git-http-backend/
+CONFIG
+
+mkdir -p /var/lib/univention-appcenter/apps/openproject/data/openproject/svn /var/lib/univention-appcenter/apps/openproject/data/openproject/git /var/lib/univention-appcenter/apps/openproject/data/openproject/files
+chown openproject:openproject /var/lib/univention-appcenter/apps/openproject/data/openproject/svn /var/lib/univention-appcenter/apps/openproject/data/openproject/git /var/lib/univention-appcenter/apps/openproject/data/openproject/files
+
+if [ -f "/var/lib/univention-appcenter/apps/openproject/conf/api_user" ]; then
+	api_user="$(cat /var/lib/univention-appcenter/apps/openproject/conf/api_user)"
+else
+	api_user="$(mkpasswd openproject | base64 | cut -c -12)"
+fi
+if [ -f "/var/lib/univention-appcenter/apps/openproject/conf/api_pw" ]; then
+	api_pw="$(cat /var/lib/univention-appcenter/apps/openproject/conf/api_pw)"
+else
+	api_pw="$(mkpasswd openproject | base64 | cut -c -12)"
+fi
+
+
+
+openproject config:set LOCALE=en
+openproject config:set DATABASE_ENCODING=utf8mb4
+openproject config:set EMAIL_DELIVERY_METHOD=sendmail
+openproject config:set ATTACHMENTS_STORAGE_PATH="/var/lib/univention-appcenter/apps/openproject/data/openproject/files"
+openproject config:set OPENPROJECT_DISABLE__PASSWORD__LOGIN=false
+openproject config:set OPENPROJECT_AUTHENTICATION_GLOBAL__BASIC__AUTH_USER="$api_user"
+openproject config:set OPENPROJECT_AUTHENTICATION_GLOBAL__BASIC__AUTH_PASSWORD="$api_pw"
+openproject configure
+
+openproject run rake setting:set[self_registration=3]
+LDAP_URL="ldap://$LDAP_USERNAME:$LDAP_PASSWORD@$LDAP_HOST:$LDAP_PORT/$LDAP_BASE"
+openproject run rake ldap:register url="$LDAP_URL" name=ucs_ldap onthefly=false map_login=uid map_firstname=givenName map_lastname=sn map_mail=mailPrimaryAddress
+
+
+#SSO_FQDN="${ucs_server_sso_fqdn:-ucs-sso.$domainname}"
+#IDP_CERT_FINGERPRINT=$(curl "https://$SSO_FQDN/simplesamlphp/saml2/idp/certificate" | openssl x509 -noout -fingerprint | cut -f2 -d '=')
+#MAPPED_SAML_CONFIG="/opt/openproject/config/plugins/auth_saml/settings.yml"
+#mkdir -p "$(dirname $MAPPED_SAML_CONFIG)"
+#cat > "$MAPPED_SAML_CONFIG" <<EOF
+#ucs:
+#  name: "ucs"
+#  display_name: "UCS"
+#  # Use the default SAML icon
+#  icon: "auth_provider-saml.png"
+#  # omniauth-saml config
+#  assertion_consumer_service_url: "https://$DOCKER_HOST/openproject/auth/ucs/callback"
+#  issuer: "$APP"
+#  idp_sso_target_url: "https://$SSO_FQDN/simplesamlphp/saml2/idp/SSOService.php"
+#  idp_cert_fingerprint: "$IDP_CERT_FINGERPRINT"
+#  attribute_statements:
+#    email: ['mailPrimaryAddress']
+#    name: ['gecos']
+#    first_name: ['givenName']
+#    last_name: ['sn']
+#    admin: ['openproject-isadmin']
+#EOF
+
+service openproject restart
+
+
+echo "-----BEGIN OPENPROJECT-EE TOKEN-----
+eyJkYXRhIjoiYWFsbmtldW5CUjVBYnBQcXM1WGVTMWpmaGNDSmRzb21kWnln
+djFjV1lEbEJUVEFpQzdhNzIyZVVidHJIXG45S0NHcktSTWR5MjZRT1RFUkVJ
+ekh6WHNQK3lmcStIZVlBU2o4Tnd4VUVQVmxDd3dxKytmYkx5NlM3Zm5cbkNW
+Q1dFVmF4L3dFbVlNbGNDK25lc2JaQWZEN2dPVjR5T2V1enB2Tm5PU092Z0k1
+RnBDcGNaQnZCdDBwNVxubVJkUnpMdzlHZERuNW1TVEZSQnRxNi93dGs3eE1n
+UUc1SjU2V2dXdlUxQ3BlMlcwR1E2VXV4Q0JJdW5DXG5RQWYzdy85a3d0QTdv
+QUhwXG4iLCJrZXkiOiJYR3Bvdi9aYWViMlVDYnJVTWhvbFhFQUtwS1ByVXNv
+OCtLOG1jRnprakU2T0o1dFdNaURDOTNQMGprTlBcbnhkZytCM2dDOEVicWVv
+aFZraWNGSlVmV0tqMWswSzVXYzNkRmE3Y2tkQzFrQkk5N3gwVW9Lc1B6cW1t
+YlxuUnYvbW5YT3Y1V0g5YS9RS0hWMGtjbHBrY1BkU1lybXdaMEJZQ01VbVRB
+RFZyZVBiWlFsYU9sRjMxR3l3XG5zNXozRkRQV0xzcCtGQU5xQ1EwbzIzaUJx
+R0Y3eTVjRzFtb3VYejNOaHk4L1Z5Umc0cENuaHpMMEdLNW5cbmx1UXFvdWJn
+VnJlM054S0FUZXFoWkZkcWUvd0Y5M3VLbndoVGs5UFBHL2ZQTm5QTWdic3RK
+SWl0NTRnUVxuT1d1Wk5VS1hLZFFrSnJua2o3UFhHbEM1Y05KNlZUQjJJYS9K
+dk9oSmNhYkFnL255ekJTdGpFYUxOSWtXXG5OS2xFVkY3R0VGM3FtYkxoSG4y
+QXU0bmZjcnozV2pOdW5tYisxSXJnRGM2QVRDdjNnMGpma0U0STl6MWdcbjR4
+QmRXRXFPL2JaZUhhajVoSUNvcGg4T24weDBRbldDNWJkUzBCdDRxek42UXc2
+bHYwTTUxV0xWQ0lzTFxuWGFoQzlkRTFjZ2FsQWFPMERJSkR4aC96a1FESFBj
+ZDE0NU1Td25VcThFRTFCL0pqMU5KYUs4TUhBdGczXG5RRW1KcnVtQ1RyZlJm
+MFFZZ2NVL0lPeXR0ZStaUjNvS1lDYUZoWG1MNjEvdzg4R1VCcmRsdUorSHo4
+dkNcbmRMUjBYbzFCK3QxOHM0bDVHa0xSR2txUEVuQkFBdE1ZR2RzM2pVN3cr
+NzFkeHZ0ejJXUGROUnBvU2J4b1xucDc1bmRsdXNUVW5JcU8zWXNvRmhTcFUz
+eXBrbFVqdGRnU2tJZGF3emFZZVd5ckw0T1lBSVRSdTdHL25wXG4ydVIxNVFO
+VjZxUFhNbjgvYzZXY1lGN2dzSDVMUjVaNkl4R2ZOK1hDNnh4TGNDWUFkYlBQ
+bC9HMzhDUjhcbkh0SUFyWVN3ZHJlWTNqRFVaNXI5czZsTXp3Y3grU2lvZWg2
+ZWdzaUVhamdaWTl6RlNRcytMdmI5eVlxL1xuQjZMVi9yKzNJWi9VTGRISy9t
+TTBpZ2NFOTYrVjczb0d0MEk4UnVnZDBtUVh0S2Y2MmxDUFZ4ODE1U1FEXG43
+cDBPb0VlaWVJeTVwNU91bjRwbnM0U0NqVHFCMUk5WWVhdnovdWtYdlBqZUFX
+eXNMZ1FVR3EzODVaVmFcbnZmK0VNeFlFNXQ3SHNiODlLU25saGV0NGpibFhS
+c3hLbWJvRHRlZE40b0FzSUQ3K3BZd2w5SVBzUGxwOVxuT2x4Z2RBUmNONXVK
+WHd5WkpselFoZ1FlcWxSMTltYTA4TzhRK3pGY0t4WmRZNWhnNGFRcGE2VXF5
+MkZ4XG40OTBHUjdOMHlQdXRrOWhGMWo4Q1NXYy9xZU94L1psdjVRaFNWdWFy
+Y0NiOGFrcnNWMDh5TkZ0VjFWVVdcbkV5VUs4R3ByYytTYWY1RUh5SThNQVBK
+T1JwQTN4OEd3UXZ0UHJBVmg0eG5nNys5eTloazRnV3ZzUm9aSFxuRzJMdkFF
+QTNVQ3ZHL2FOSDU0ZGNBREErQWNLWGNrWkhiRXZBOU4vcFh4VGIzTFRrNVdS
+MGc5NTh6d3VlXG43RGhUejFRRmYvSWxtcngwUEVWbDljaTBMTXNDbnZuVHRT
+ZFZwTGdPbkxwakpQcWJ0YzAzZWxEeTVJa1dcbmo2SjlmamdTclVyejV3RFJu
+WWdjSEJoK1BDVVFnQT09XG4iLCJpdiI6IlNtdDJiNXhIR1RvR1VMcEhvUVE2
+Smc9PVxuIn0=
+-----END OPENPROJECT-EE TOKEN-----" | openproject run rails runner 'token = ARGF.read; exit 1 if token.blank?; exit 0 if OpenProject::Enterprise.token.present?; tok = EnterpriseToken.create(encoded_token: token); STDERR.puts tok.errors.full_messages.join("\n") unless tok.valid?; exit(tok.persisted? ? 0 : 1)'
+
+openproject run rails runner 'Setting.users_deletable_by_admins = true'
+
+listener_file="/usr/lib/univention-directory-listener/system/openproject.py"
+if [ -e "$listener_file" ]; then
+  rm "$listener_file"
+  service univention-directory-listener restart
+fi
