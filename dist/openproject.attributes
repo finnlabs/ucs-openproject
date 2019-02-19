@@ -1,11 +1,15 @@
 [openprojectActivated]
+Type=ExtendedAttribute
 OID=1.3.6.1.4.1.10176.99998.6696237932.1.2
 Description=Activate user for OpenProject
 DescriptionDE=Nutzer für OpenProject aktivieren
 Syntax=Boolean
 BelongsTo=openproject-user
+DisableWeb=1
+Default=1
 
 [openproject-isadmin]
+Type=ExtendedAttribute
 OID=1.3.6.1.4.1.10176.99998.6696237932.1.1
 Description=Give admin rights to OpenProject
 DescriptionDE=Admin-Rechte für OpenProject
@@ -15,4 +19,7 @@ BelongsTo=openproject-user
 [openproject-user]
 Type=ObjectClass
 OID=1.3.6.1.4.1.10176.99998.6696237932.0.1
-
+AddExtendedOption=1
+Module=users/user
+OptionName=openproject-user
+Default=0
