@@ -1,0 +1,17 @@
+#!/bin/bash
+
+. /usr/share/univention-docker-container-mode/lib.sh
+
+/usr/share/univention-docker-container-mode/update_app_version "$@" || die "Could not install App"
+
+export SERVER_PROTOCOL_FORCE_HTTPS=1
+export SERVER_PROTOCOL=http
+openproject configure || die "Failed to reconfigure OpenProject"
+
+openproject run rails runner 'Setting.users_deletable_by_admins = true'
+
+listener_file="/usr/lib/univention-directory-listener/system/openproject.py"
+if [ -e "$listener_file" ]; then
+  rm "$listener_file"
+  service univention-directory-listener restart
+fi

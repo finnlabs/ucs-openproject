@@ -1,0 +1,144 @@
+#!/usr/bin/python2.7
+from glob import glob
+import sys
+import json
+import os
+import os.path
+import subprocess
+
+from requests import request
+
+base_url = 'http://localhost:6000/openproject/api/v3'
+
+output = subprocess.check_output(['openproject', 'run', 'env'])
+env = dict(line.split('=', 1) for line in output.splitlines() if line)
+op_user = env['OPENPROJECT_AUTHENTICATION_GLOBAL__BASIC__AUTH_USER']
+op_pass = env['OPENPROJECT_AUTHENTICATION_GLOBAL__BASIC__AUTH_PASSWORD']
+
+id_map_file = '/var/lib/univention-appcenter/apps/openproject/data/id_map.json'
+
+try:
+	id_map = json.load(open(id_map_file))
+except (EnvironmentError, TypeError, ValueError):
+	id_map = {}
+
+def save_id(entry_uuid, op_id):
+	id_map[entry_uuid] = op_id
+	json.dump(id_map, open(id_map_file, 'w'))
+
+def main():
+	success = True
+	for fname in glob('/var/lib/univention-appcenter/apps/openproject/data/listener/*.json'):
+		print 'Working on', os.path.basename(fname)
+		try:
+			handle(fname)
+		except Exception:
+			print 'Error!'
+			import traceback
+			traceback.print_exc()
+			success = False
+		else:
+			os.unlink(fname)
+	return success
+
+def handle(fname):
+	obj = json.load(open(fname))
+	ldap_id = obj['id']
+	op_id = id_map.get(ldap_id)
+	print '         ldap-id:', ldap_id
+	print '           op-id:', op_id or 'yet unknown'
+	if obj['object'] is None:
+		print '  User deleted'
+		if op_id:
+			print '  Deleting from OpenProject'
+			delete(op_id)
+		else:
+			print '  Ignoring...'
+		return
+	username = obj['object'].get('username')
+	locked = obj['object'].get('locked') == '1' or obj['object'].get('disabled') == '1'
+	mail_address = obj['object'].get('mailPrimaryAddress')
+	activated = obj['object'].get('openprojectActivated') == 'TRUE'
+	admin = obj['object'].get('openproject-isadmin') == 'TRUE'
+	print '        username:', username
+	print '     displayname:', obj['object'].get('displayName')
+	print '    op-activated:', activated
+	print '        op-admin:', admin
+	print '    mail address:', mail_address
+	print '          locked:', locked
+	if op_id:
+		print '  Updating in OpenProject'
+		update(op_id, obj['object'])
+		if mail_address and activated and not locked:
+			print '  Activating in OpenProject'
+			unlock(op_id)
+		else:
+			print '  Locking in OpenProject'
+			lock(op_id)
+	else:
+		if mail_address and activated and not locked:
+			print '  Creating in OpenProject'
+			op_id = create(obj['object'])
+			save_id(ldap_id, op_id)
+			print '  Activating in OpenProject'
+			unlock(op_id)
+		else:
+			print '  Ignoring (no mail or activated)'
+
+def _openproject_attrs(obj):
+	ret = {}
+	ret['login'] = obj['username']
+	if obj['mailPrimaryAddress']:
+		ret['email'] = obj['mailPrimaryAddress']
+	ret['firstName'] = obj.get('firstname') or obj['lastname']
+	ret['lastName'] = obj['lastname']
+	ret['admin'] = obj.get('openproject-isadmin') == 'TRUE'
+	#ret['password'] = 'halloHALLO1!'
+	#ret['auth_source'] = 'ucs_ldap'
+	ret['_links'] = {'authSource': {'href': 'http://localhost:6000/api/v3/auth_sources/ucs_ldap'}}
+	#ret['status'] = 'active'
+	ret['language'] = 'en'
+	return ret
+
+def op_request(command, uri, data=None):
+	print '  -> %s to %s' % (command, uri)
+	if data:
+		print '    %r' % (data,)
+	response = request(command, base_url + uri, json=data, headers={'content-type': 'application/json', 'X-Forwarded-Proto': 'https', 'X-Forwarded-SSL': 'on'}, auth=(op_user, op_pass))
+	print '  -> %s' % response.status_code
+	answer = response.json()
+	if answer['_type'] == 'Collection':
+		return answer['_embedded']
+	elif answer['_type'] == 'Error':
+		raise ValueError(answer['message'])
+	return answer
+
+def lock(op_id):
+	op_request('POST', '/users/%s/lock' % op_id)
+
+def unlock(op_id):
+	op_request('DELETE', '/users/%s/lock' % op_id)
+
+def create(obj):
+	return update(None, obj)
+
+def update(op_id, obj):
+	username = obj['username']
+	users = op_request('GET', '/users')['elements']
+	if op_id is None:
+		for user in users:
+			if user['login'] == username:
+				op_id = user['id']
+				break
+	if op_id:
+		op_request('PATCH', '/users/%s' % op_id, _openproject_attrs(obj))
+	else:
+		user = op_request('POST', '/users', _openproject_attrs(obj))
+		op_id = user['id']
+	return op_id
+
+def delete(op_id):
+	op_request('DELETE', '/users/%s' % op_id)
+
+if not main():
+	sys.exit(1)

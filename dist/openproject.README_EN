@@ -4,6 +4,19 @@
 <p>
 	After installation, your OpenProject instance should be available at https://domain.com/openproject/. It is already integrated with the UCS identity management. Users for OpenProject simply need to be activated within the user account settings in UCS. Afterwards, the user can login to OpenProject with his domain credentials.
 </p>
+<p>
+	For how to deal with the self signed certificate of UCS in your browser, please refer to the following articles:
+</p>
+<ul>
+	<li>
+		<a href="https://help.univention.com/t/11025" target="_blank">How-to: Accept self signed certificate in Mozilla Firefox</a>
+	</li>
+	<li>
+		<a href="https://help.univention.com/t/11026" target="_blank">How-to: Accept self signed certificate in Chrome/Chromium</a>
+	</li>
+</ul>
+<p>
+</p>
 <h2>
 	Integrated into the UCS Identity Management
 </h2>
@@ -33,6 +46,9 @@
 		The checkbox <i>Give admin rights to OpenProject</i> controls whether the user is also an admin for OpenProject.
 	</li>
 </ul>
+<div>
+	You can then access OpenProject over https. If you use UCS with a self-signed certificate, you may need to create an exception in your browser to allow access to OpenProject.
+</div>
 <p>
 	Once you're logged in to OpenProject, you should make sure to disable the default admin account that was automatically created.
 </p>

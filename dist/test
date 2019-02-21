@@ -1,0 +1,114 @@
+#!/usr/bin/python
+
+import time
+
+import pytest
+import shutil
+import MySQLdb as mysql
+
+from univention.config_registry import ConfigRegistry
+from univention.udm import UDM, CreateError
+
+ucr = ConfigRegistry()
+ucr.load()
+domainname = ucr.get('domainname')
+ldap_base = ucr.get('ldap/base')
+username = ucr.get('tests/domainadmin/account')
+pwdfile = ucr.get('tests/domainadmin/pwdfile')
+
+def get_cursor():
+	connection = mysql.connect(host='localhost', user='root', passwd=open('/etc/mysql.secret').read().strip(), db='openproject')
+	return connection.cursor()
+
+def query_user(username):
+	time.sleep(7)
+	query = "SELECT login, firstname, lastname, mail, admin, status, auth_source_id FROM users WHERE login = %s"
+	cursor = get_cursor()
+	cursor.execute(query, (username,))
+	attrs = cursor.fetchone()
+	assert attrs[-1] == 1
+	return attrs
+
+def verify_user_does_not_exist(user):
+	time.sleep(7)
+	query = "SELECT login, firstname, lastname, mail, admin, status, auth_source_id FROM users WHERE login = %s"
+	cursor = get_cursor()
+	cursor.execute(query, (username,))
+	attrs = cursor.fetchone()
+	assert attrs == None
+
+def verify_user_exists_in_db_unlocked(user):
+	attrs = query_user(user.props.username)
+	check_user(user, attrs)
+	assert attrs[5] == 1
+
+def verify_user_exists_in_db_locked(user):
+	attrs = query_user(user.props.username)
+	check_user(user, attrs)
+	assert attrs[5] == 3
+
+def check_user(user, attrs):
+	assert attrs[0] == user.props.username
+	assert attrs[1] == user.props.firstname
+	assert attrs[2] == user.props.lastname
+	assert attrs[3] == user.props.mailPrimaryAddress
+	assert attrs[4] == (getattr(user.props, 'openproject-isadmin') == 'TRUE')
+
+udm = UDM.credentials(username, open(pwdfile).read().strip()).version(1)
+
+mail = udm.get('mail/domain')
+domain = mail.new()
+domain.position = 'cn=mail,%s' % ldap_base
+domain.props.name = domainname
+try:
+	domain.save()
+except CreateError:
+	pass
+
+users = udm.get('users/user')
+
+def test_admin():
+	user = users.new()
+	user.props.username = 'openproject-user1'
+	user.props.password = 'univention'
+	user.props.firstname = 'F1'
+	user.props.lastname = 'L1'
+	user.props.mailPrimaryAddress = '%s@%s' % (user.props.username, domainname)
+	user.props.openprojectActivated = 'TRUE'
+	setattr(user.props, 'openproject-isadmin', 'TRUE')
+	user.save()
+	try:
+		verify_user_exists_in_db_unlocked(user)
+	finally:
+		user.delete()
+		verify_user_does_not_exist(user)
+
+def test_user():
+	user = users.new()
+	user.props.username = 'openproject-user2'
+	user.props.password = 'univention'
+	user.props.firstname = 'F2'
+	user.props.lastname = 'L2'
+	user.save()
+	try:
+		verify_user_does_not_exist(user)
+		user.props.mailPrimaryAddress = '%s@%s' % (user.props.username, domainname)
+		user.save()
+		verify_user_does_not_exist(user)
+		user.props.openprojectActivated = 'TRUE'
+		user.save()
+		verify_user_exists_in_db_unlocked(user)
+		user.props.locked = '1'
+		user.save()
+		verify_user_exists_in_db_locked(user)
+		user.props.locked = '0'
+		user.save()
+		verify_user_exists_in_db_unlocked(user)
+	finally:
+		user.delete()
+		verify_user_does_not_exist(user)
+
+if __name__ == '__main__':
+	fname = '/tmp/openprojecttest.py'
+	shutil.copy2(__file__, fname)
+	pytest.main([fname])
